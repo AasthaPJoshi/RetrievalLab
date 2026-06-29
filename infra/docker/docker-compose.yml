@@ -1,0 +1,230 @@
+# =============================================================================
+# RetrievalLab — infra/docker/docker-compose.yml
+# =============================================================================
+# PURPOSE : Spins up every infrastructure service needed for local development
+#           with a single command: docker compose up -d
+#
+# SERVICES PROVIDED:
+#   • postgres    — primary relational database (experiment metadata, corpus catalog)
+#   • redis       — cache layer + Celery message broker
+#   • minio       — S3-compatible object storage (corpus files, index snapshots)
+#   • chromadb    — lightweight vector database (local dev index)
+#   • elasticsearch — BM25 sparse retrieval index
+#   • mlflow      — experiment tracking UI (optional, comment out if not needed)
+#
+# USAGE:
+#   Start:   docker compose -f infra/docker/docker-compose.yml up -d
+#   Stop:    docker compose -f infra/docker/docker-compose.yml down
+#   Logs:    docker compose -f infra/docker/docker-compose.yml logs -f <service>
+#   Status:  docker compose -f infra/docker/docker-compose.yml ps
+#
+# NETWORK : All services share the `retrievallab_net` bridge network.
+#           Access from host machine via localhost:<port>.
+#           Access from other containers via service name (e.g., postgres:5432).
+#
+# VOLUMES : Named volumes persist data across docker compose down/up cycles.
+#           Run `docker compose down -v` to wipe all data.
+#
+# PORTS (host → container):
+#   postgres      5432 → 5432
+#   redis         6379 → 6379
+#   minio API     9000 → 9000
+#   minio Console 9001 → 9001   (browser UI at http://localhost:9001)
+#   chromadb      8001 → 8000
+#   elasticsearch 9200 → 9200
+#   mlflow        5000 → 5000   (UI at http://localhost:5000)
+# =============================================================================
+
+version: "3.9"
+
+# ─── Shared defaults ─────────────────────────────────────────────────────────
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# ─── Services ────────────────────────────────────────────────────────────────
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # Role: Primary relational DB — stores corpus metadata, experiment results,
+  #       leaderboard, user config, and the pgvector extension for hybrid SQL+vector.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16   # Official pgvector image includes the extension
+    container_name: rl_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       retrievallab
+      POSTGRES_USER:     retrievallab
+      POSTGRES_PASSWORD: retrievallab_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro  # enable pgvector
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retrievallab -d retrievallab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # Role: (1) Embedding cache — stores model+text → vector mappings.
+  #       (2) Celery broker — queues background indexing jobs.
+  #       (3) Rate limiting — tracks API call rates per user/key.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: rl_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # MinIO (S3-compatible object storage)
+  # Role: Stores raw corpus files (PDFs, DOCXs), FAISS index snapshots,
+  #       generated PDF reports, and experiment result archives.
+  # UI: http://localhost:9001 (login: minioadmin / minioadmin)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: rl_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"    # S3 API
+      - "9001:9001"    # Web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # ChromaDB
+  # Role: Lightweight local vector database for quick dev iteration.
+  #       Used as the default index backend during Day 1-2 development.
+  #       Production upgrades to FAISS/Qdrant/Weaviate.
+  # ---------------------------------------------------------------------------
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: rl_chromadb
+    restart: unless-stopped
+    environment:
+      CHROMA_SERVER_HTTP_PORT: 8000
+      ANONYMIZED_TELEMETRY:    "false"
+    ports:
+      - "8001:8000"    # mapped to 8001 on host to avoid clash with FastAPI
+    volumes:
+      - chroma_data:/chroma/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Elasticsearch 8
+  # Role: BM25 sparse retrieval index. Also used for full-text search over
+  #       experiment logs and corpus metadata.
+  # NOTE : Single-node dev setup. Memory capped at 1GB (set via ES_JAVA_OPTS).
+  # ---------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: rl_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false       # disable auth for local dev
+      - ES_JAVA_OPTS=-Xms512m -Xmx1g
+      - cluster.name=retrievallab
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # MLflow Tracking Server
+  # Role: Logs all retrieval experiment metrics (NDCG@K, MRR, latency),
+  #       model artifacts, and hyperparameter sweeps. UI at http://localhost:5000
+  # ---------------------------------------------------------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.0
+    container_name: rl_mlflow
+    restart: unless-stopped
+    command: >
+      mlflow server
+        --backend-store-uri postgresql://retrievallab:retrievallab_dev_password@postgres:5432/retrievallab
+        --default-artifact-root s3://retrievallab/mlflow
+        --host 0.0.0.0
+        --port 5000
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID:      minioadmin
+      AWS_SECRET_ACCESS_KEY:  minioadmin
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - retrievallab_net
+    logging: *default-logging
+
+# ─── Named Volumes ────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    name: rl_postgres_data
+  redis_data:
+    name: rl_redis_data
+  minio_data:
+    name: rl_minio_data
+  chroma_data:
+    name: rl_chroma_data
+  elasticsearch_data:
+    name: rl_elasticsearch_data
+
+# ─── Network ─────────────────────────────────────────────────────────────────
+networks:
+  retrievallab_net:
+    name: retrievallab_net
+    driver: bridge
