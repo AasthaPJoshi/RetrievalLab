@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Environment — NEVER commit secrets
+.env
+.env.local
+.env.production
+
+# Database
+*.sqlite
+*.db
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/src/{components/
+
+# macOS
+.DS_Store
+**/.DS_Store
+__MACOSX/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker volumes (local only)
+infra/docker/volumes/
+
+# MLflow artifacts
+mlruns/
+mlartifacts/
+
+# Results and reports (too large)
+results/reports/*.pdf
+
+# Vector indexes (rebuilt at runtime)
+*.faiss
+*.index
+
+# Jupyter
+.ipynb_checkpoints/
