@@ -30,7 +30,8 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import event, text
+from config.settings import get_settings
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
@@ -38,8 +39,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-
-from config.settings import get_settings
 
 settings = get_settings()
 
@@ -49,11 +48,11 @@ settings = get_settings()
 # pool_pre_ping=True: validates connections before checkout (avoids stale conn errors)
 engine = create_async_engine(
     settings.database.url,
-    echo=settings.is_development,    # log SQL queries in dev mode only
+    echo=settings.is_development,  # log SQL queries in dev mode only
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
-    pool_recycle=3600,               # recycle connections every hour
+    pool_recycle=3600,  # recycle connections every hour
     json_serializer=lambda obj: __import__("orjson").dumps(obj).decode(),
     json_deserializer=lambda s: __import__("orjson").loads(s),
 )
@@ -66,7 +65,7 @@ AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
-    autoflush=False,                 # manual flush gives us explicit control
+    autoflush=False,  # manual flush gives us explicit control
     autocommit=False,
 )
 
@@ -79,6 +78,7 @@ class Base(AsyncAttrs, DeclarativeBase):
     AsyncAttrs mixin enables `await model.awaitable_attrs.relationship`
     for lazy-loading async relationships.
     """
+
     # Type annotation for metadata — subclasses don't need to repeat this.
     type_annotation_map: dict[Any, Any] = {}
 

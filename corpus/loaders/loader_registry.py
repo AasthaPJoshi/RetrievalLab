@@ -32,7 +32,7 @@ import structlog
 
 from corpus.loaders.base_loader import BaseLoader, LoaderResult, ParsedDocument
 from corpus.loaders.pdf_loader import PDFLoader
-from corpus.loaders.text_loader import TextLoader, MarkdownLoader, DocxLoader, HTMLLoader
+from corpus.loaders.text_loader import DocxLoader, HTMLLoader, MarkdownLoader, TextLoader
 
 logger = structlog.get_logger(__name__)
 
@@ -60,11 +60,11 @@ class LoaderRegistry:
 
     def _register_defaults(self) -> None:
         """Register all built-in loaders with default priorities."""
-        self.register(PDFLoader(extract_tables=True),  priority=100)
-        self.register(DocxLoader(),                    priority=90)
-        self.register(HTMLLoader(),                    priority=80)
-        self.register(MarkdownLoader(),                priority=70)
-        self.register(TextLoader(),                    priority=60)
+        self.register(PDFLoader(extract_tables=True), priority=100)
+        self.register(DocxLoader(), priority=90)
+        self.register(HTMLLoader(), priority=80)
+        self.register(MarkdownLoader(), priority=70)
+        self.register(TextLoader(), priority=60)
 
     def register(self, loader: BaseLoader, priority: int = 50) -> None:
         """
@@ -157,7 +157,7 @@ class LoaderRegistry:
         Files with no matching loader are silently skipped (not counted as failures).
         """
         all_documents: list[ParsedDocument] = []
-        all_failures:  list[tuple[str, str]] = []
+        all_failures: list[tuple[str, str]] = []
         total_files = 0
 
         for file_path in sorted(directory.rglob("*")):

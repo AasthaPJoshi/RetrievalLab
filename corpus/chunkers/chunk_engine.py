@@ -65,6 +65,7 @@ def truncate_to_tokens(text: str, max_tokens: int) -> str:
 
 # ─── Output Data Class ────────────────────────────────────────────────────────
 
+
 @dataclass
 class TextChunk:
     """
@@ -87,17 +88,17 @@ class TextChunk:
         level:         For RAPTOR: tree level (0 = leaf, 1 = summary, 2 = abstract).
     """
 
-    text:          str
+    text: str
     source_doc_id: str
-    chunk_index:   int
-    strategy:      str
-    chunk_id:      str             = field(default_factory=lambda: str(uuid.uuid4()))
-    token_count:   int             = field(default=0)
-    metadata:      dict[str, Any]  = field(default_factory=dict)
-    overlap_prev:  int             = field(default=0)
-    overlap_next:  int             = field(default=0)
-    parent_id:     str | None      = field(default=None)
-    level:         int             = field(default=0)
+    chunk_index: int
+    strategy: str
+    chunk_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    token_count: int = field(default=0)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    overlap_prev: int = field(default=0)
+    overlap_next: int = field(default=0)
+    parent_id: str | None = field(default=None)
+    level: int = field(default=0)
 
     def __post_init__(self) -> None:
         if self.token_count == 0:
@@ -127,31 +128,32 @@ class ChunkConfig:
     All size values are in TOKENS (not characters) for model compatibility.
     """
 
-    strategy:            str   = "recursive"     # strategy name
-    chunk_size:          int   = 512             # target chunk size in tokens
-    chunk_overlap:       int   = 64              # overlap tokens between consecutive chunks
-    min_chunk_size:      int   = 50              # discard chunks smaller than this
-    max_chunk_size:      int   = 1024            # hard cap; truncate if exceeded
+    strategy: str = "recursive"  # strategy name
+    chunk_size: int = 512  # target chunk size in tokens
+    chunk_overlap: int = 64  # overlap tokens between consecutive chunks
+    min_chunk_size: int = 50  # discard chunks smaller than this
+    max_chunk_size: int = 1024  # hard cap; truncate if exceeded
 
     # Semantic chunker settings
-    breakpoint_threshold: float = 0.85           # cosine similarity threshold for boundaries
-    buffer_size:          int   = 1              # sentences on each side of boundary
+    breakpoint_threshold: float = 0.85  # cosine similarity threshold for boundaries
+    buffer_size: int = 1  # sentences on each side of boundary
 
     # Sentence window settings
-    window_size:          int   = 3              # sentences around the anchor sentence
+    window_size: int = 3  # sentences around the anchor sentence
 
     # RAPTOR settings
-    max_raptor_levels:    int   = 3              # maximum summary tree depth
-    raptor_cluster_size:  int   = 5             # chunks per summary cluster
+    max_raptor_levels: int = 3  # maximum summary tree depth
+    raptor_cluster_size: int = 5  # chunks per summary cluster
 
     # Code-aware settings
-    code_language:        str   = "python"       # "python" | "javascript" | "java" | ...
+    code_language: str = "python"  # "python" | "javascript" | "java" | ...
 
     # Extra strategy-specific settings
-    extra:               dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 # ─── Abstract Strategy Protocol ──────────────────────────────────────────────
+
 
 class ChunkStrategy(abc.ABC):
     """
@@ -205,6 +207,7 @@ class ChunkStrategy(abc.ABC):
 
 # ─── Strategy Implementations ─────────────────────────────────────────────────
 
+
 class FixedSizeChunker(ChunkStrategy):
     """
     Naive fixed-size character-level chunking with token-counted overlap.
@@ -223,13 +226,13 @@ class FixedSizeChunker(ChunkStrategy):
 
     def chunk(self, document: ParsedDocument, config: ChunkConfig) -> list[TextChunk]:
         tokens = _TOKENIZER.encode(document.text)
-        step   = config.chunk_size - config.chunk_overlap
+        step = config.chunk_size - config.chunk_overlap
         chunks: list[TextChunk] = []
 
         for i, start in enumerate(range(0, len(tokens), step)):
-            end       = min(start + config.chunk_size, len(tokens))
+            end = min(start + config.chunk_size, len(tokens))
             chunk_tokens = tokens[start:end]
-            text      = _TOKENIZER.decode(chunk_tokens)
+            text = _TOKENIZER.decode(chunk_tokens)
 
             chunk = self._make_chunk(text, document, i)
             chunk.overlap_prev = config.chunk_overlap if i > 0 else 0
@@ -332,8 +335,8 @@ class RecursiveChunker(ChunkStrategy):
             else:
                 merged.append(buffer)
                 # Add overlap: take first `chunk_overlap` tokens of buffer
-                overlap_tokens = _TOKENIZER.encode(buffer)[-config.chunk_overlap:]
-                overlap_text   = _TOKENIZER.decode(overlap_tokens)
+                overlap_tokens = _TOKENIZER.encode(buffer)[-config.chunk_overlap :]
+                overlap_text = _TOKENIZER.decode(overlap_tokens)
                 buffer = overlap_text + " " + next_chunk
 
         if buffer:
@@ -391,12 +394,11 @@ class SemanticChunker(ChunkStrategy):
         embeddings = model.encode(sentences, batch_size=64, show_progress_bar=False)
 
         # Compute cosine similarities between adjacent sentences
-        def cosine_sim(a: "np.ndarray", b: "np.ndarray") -> float:
+        def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
             return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
 
         similarities = [
-            cosine_sim(embeddings[i], embeddings[i + 1])
-            for i in range(len(embeddings) - 1)
+            cosine_sim(embeddings[i], embeddings[i + 1]) for i in range(len(embeddings) - 1)
         ]
 
         # Identify breakpoints: similarity below threshold = topic change
@@ -414,10 +416,14 @@ class SemanticChunker(ChunkStrategy):
             if i in breakpoints and chunk_sentences:
                 chunk_text = " ".join(chunk_sentences)
                 if count_tokens(chunk_text) > config.min_chunk_size:
-                    chunks.append(self._make_chunk(
-                        chunk_text, document, chunk_idx,
-                        {"breakpoint_before": True, "sentence_count": len(chunk_sentences)},
-                    ))
+                    chunks.append(
+                        self._make_chunk(
+                            chunk_text,
+                            document,
+                            chunk_idx,
+                            {"breakpoint_before": True, "sentence_count": len(chunk_sentences)},
+                        )
+                    )
                     chunk_idx += 1
                 chunk_sentences = []
             chunk_sentences.append(sentence)
@@ -426,10 +432,14 @@ class SemanticChunker(ChunkStrategy):
         if chunk_sentences:
             chunk_text = " ".join(chunk_sentences)
             if chunk_text.strip():
-                chunks.append(self._make_chunk(
-                    chunk_text, document, chunk_idx,
-                    {"sentence_count": len(chunk_sentences)},
-                ))
+                chunks.append(
+                    self._make_chunk(
+                        chunk_text,
+                        document,
+                        chunk_idx,
+                        {"sentence_count": len(chunk_sentences)},
+                    )
+                )
 
         return chunks
 
@@ -464,28 +474,32 @@ class SentenceWindowChunker(ChunkStrategy):
         nlp = spacy.load("en_core_web_sm")
         nlp.max_length = 2_000_000
         spacy_doc = nlp(document.text[:1_000_000])
-        sentences  = [s.text.strip() for s in spacy_doc.sents if s.text.strip()]
+        sentences = [s.text.strip() for s in spacy_doc.sents if s.text.strip()]
 
         chunks: list[TextChunk] = []
         w = config.window_size  # N sentences on each side
 
         for i, anchor_sentence in enumerate(sentences):
             start = max(0, i - w)
-            end   = min(len(sentences), i + w + 1)
+            end = min(len(sentences), i + w + 1)
             window_text = " ".join(sentences[start:end])
 
             if count_tokens(window_text) < config.min_chunk_size:
                 continue
 
-            chunks.append(self._make_chunk(
-                window_text, document, i,
-                {
-                    "anchor_sentence": anchor_sentence,
-                    "anchor_index":    i,
-                    "window_start":    start,
-                    "window_end":      end - 1,
-                },
-            ))
+            chunks.append(
+                self._make_chunk(
+                    window_text,
+                    document,
+                    i,
+                    {
+                        "anchor_sentence": anchor_sentence,
+                        "anchor_index": i,
+                        "window_start": start,
+                        "window_end": end - 1,
+                    },
+                )
+            )
 
         return chunks
 
@@ -505,11 +519,11 @@ class DocumentStructureChunker(ChunkStrategy):
 
     # Patterns that indicate a new section header
     HEADING_PATTERNS = [
-        r"^#{1,6}\s+.+$",                         # Markdown headings
-        r"^[A-Z][A-Z\s]{4,}$",                    # ALL CAPS headings
-        r"^\d+\.\s+[A-Z].+$",                     # "1. Introduction"
-        r"^(Section|Article|Chapter)\s+\d+",      # "Section 3: ..."
-        r"^[IVX]+\.\s+[A-Z].+$",                  # Roman numerals
+        r"^#{1,6}\s+.+$",  # Markdown headings
+        r"^[A-Z][A-Z\s]{4,}$",  # ALL CAPS headings
+        r"^\d+\.\s+[A-Z].+$",  # "1. Introduction"
+        r"^(Section|Article|Chapter)\s+\d+",  # "Section 3: ..."
+        r"^[IVX]+\.\s+[A-Z].+$",  # Roman numerals
     ]
 
     @property
@@ -554,10 +568,14 @@ class DocumentStructureChunker(ChunkStrategy):
             full_text = f"{heading}\n{section_text}"
 
             if count_tokens(full_text) <= config.chunk_size:
-                chunks.append(self._make_chunk(
-                    full_text, document, chunk_idx,
-                    {"section_heading": heading},
-                ))
+                chunks.append(
+                    self._make_chunk(
+                        full_text,
+                        document,
+                        chunk_idx,
+                        {"section_heading": heading},
+                    )
+                )
                 chunk_idx += 1
             else:
                 # Recursively split large sections
@@ -613,6 +631,7 @@ Return ONLY valid JSON, no other text."""
 
         try:
             from anthropic import Anthropic
+
             client = Anthropic()
         except Exception:
             logger.warning("propositional_chunker_no_llm_falling_back")
@@ -640,10 +659,14 @@ Return ONLY valid JSON, no other text."""
                 propositions = json.loads(response.content[0].text)
                 for prop in propositions:
                     if isinstance(prop, str) and prop.strip():
-                        chunks.append(self._make_chunk(
-                            prop.strip(), document, chunk_idx,
-                            {"source_paragraph": para[:200]},
-                        ))
+                        chunks.append(
+                            self._make_chunk(
+                                prop.strip(),
+                                document,
+                                chunk_idx,
+                                {"source_paragraph": para[:200]},
+                            )
+                        )
                         chunk_idx += 1
             except Exception as exc:
                 logger.warning("proposition_extraction_failed", error=str(exc))
@@ -685,8 +708,11 @@ class TableAwareChunker(ChunkStrategy):
         text_without_tables = document.text
         # Remove [TABLE]...[/TABLE] markers (added by DocxLoader)
         import re
+
         table_blocks = re.findall(r"\[TABLE\](.*?)\[/TABLE\]", text_without_tables, re.DOTALL)
-        text_without_tables = re.sub(r"\[TABLE\].*?\[/TABLE\]", "", text_without_tables, flags=re.DOTALL)
+        text_without_tables = re.sub(
+            r"\[TABLE\].*?\[/TABLE\]", "", text_without_tables, flags=re.DOTALL
+        )
 
         # Chunk the prose text
         prose_doc = type(document)(
@@ -714,16 +740,21 @@ class TableAwareChunker(ChunkStrategy):
                 lines.append(" | ".join(row))
 
             table_text = "\n".join(lines)
-            chunks.append(self._make_chunk(
-                table_text, document, chunk_idx,
-                {"is_table": True, "table_index": i, "row_count": len(table)},
-            ))
+            chunks.append(
+                self._make_chunk(
+                    table_text,
+                    document,
+                    chunk_idx,
+                    {"is_table": True, "table_index": i, "row_count": len(table)},
+                )
+            )
             chunk_idx += 1
 
         return chunks
 
 
 # ─── ChunkEngine Orchestrator ─────────────────────────────────────────────────
+
 
 class ChunkEngine:
     """
@@ -799,10 +830,7 @@ class ChunkEngine:
 
         if config.strategy not in self._strategies:
             available = ", ".join(self.available_strategies)
-            raise ValueError(
-                f"Unknown strategy {config.strategy!r}. "
-                f"Available: {available}"
-            )
+            raise ValueError(f"Unknown strategy {config.strategy!r}. Available: {available}")
 
         if document.is_empty:
             logger.warning("empty_document_skipped", source=document.source)
@@ -821,7 +849,8 @@ class ChunkEngine:
 
         # Filter and validate
         valid_chunks = [
-            c for c in raw_chunks
+            c
+            for c in raw_chunks
             if not c.is_empty
             and c.token_count >= config.min_chunk_size
             and c.token_count <= config.max_chunk_size

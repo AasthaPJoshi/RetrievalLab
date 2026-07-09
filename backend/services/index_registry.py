@@ -41,13 +41,14 @@ from typing import Any
 
 import numpy as np
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 
 
 # ─── Data Classes ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class IndexSearchResult:
@@ -63,12 +64,12 @@ class IndexSearchResult:
         metadata:   Chunk metadata dict (section headers, page numbers, etc.)
     """
 
-    chunk_id:    str
-    text:        str
-    score:       float
-    rank:        int
-    source_doc:  str = ""
-    metadata:    dict[str, Any] = field(default_factory=dict)
+    chunk_id: str
+    text: str
+    score: float
+    rank: int
+    source_doc: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         preview = self.text[:80].replace("\n", " ")
@@ -76,6 +77,7 @@ class IndexSearchResult:
 
 
 # ─── Abstract Base ────────────────────────────────────────────────────────────
+
 
 class VectorIndex(abc.ABC):
     """
@@ -104,10 +106,10 @@ class VectorIndex(abc.ABC):
     @abc.abstractmethod
     async def build(
         self,
-        chunk_ids:  list[str],
-        texts:      list[str],
-        vectors:    list[list[float]],
-        metadata:   list[dict],
+        chunk_ids: list[str],
+        texts: list[str],
+        vectors: list[list[float]],
+        metadata: list[dict],
     ) -> int:
         """
         Build the index from chunk data.
@@ -127,7 +129,7 @@ class VectorIndex(abc.ABC):
     async def search(
         self,
         query_vector: list[float],
-        top_k:        int = 10,
+        top_k: int = 10,
     ) -> list[IndexSearchResult]:
         """
         Search for the top_k most similar chunks.
@@ -159,6 +161,7 @@ class VectorIndex(abc.ABC):
 
 # ─── FAISS Backend ────────────────────────────────────────────────────────────
 
+
 class FaissIndex(VectorIndex):
     """
     FAISS in-process vector index.
@@ -179,18 +182,18 @@ class FaissIndex(VectorIndex):
 
     def __init__(
         self,
-        dim:        int  = 1536,
-        index_type: str  = "flat",
-        nlist:      int  = 100,
+        dim: int = 1536,
+        index_type: str = "flat",
+        nlist: int = 100,
     ) -> None:
-        self._dim         = dim
-        self._index_type  = index_type
-        self._nlist       = nlist
-        self._index       = None  # faiss.Index — built lazily
-        self._chunk_ids:  list[str]        = []
-        self._texts:      list[str]        = []
-        self._metadata:   list[dict]       = []
-        self._is_built    = False
+        self._dim = dim
+        self._index_type = index_type
+        self._nlist = nlist
+        self._index = None  # faiss.Index — built lazily
+        self._chunk_ids: list[str] = []
+        self._texts: list[str] = []
+        self._metadata: list[dict] = []
+        self._is_built = False
 
     @property
     def backend_name(self) -> str:
@@ -207,23 +210,23 @@ class FaissIndex(VectorIndex):
     async def build(
         self,
         chunk_ids: list[str],
-        texts:     list[str],
-        vectors:   list[list[float]],
-        metadata:  list[dict],
+        texts: list[str],
+        vectors: list[list[float]],
+        metadata: list[dict],
     ) -> int:
         """Build FAISS index from numpy float32 vectors."""
         import asyncio
+
         return await asyncio.get_event_loop().run_in_executor(
-            None,
-            self._build_sync, chunk_ids, texts, vectors, metadata
+            None, self._build_sync, chunk_ids, texts, vectors, metadata
         )
 
     def _build_sync(
         self,
         chunk_ids: list[str],
-        texts:     list[str],
-        vectors:   list[list[float]],
-        metadata:  list[dict],
+        texts: list[str],
+        vectors: list[list[float]],
+        metadata: list[dict],
     ) -> int:
         """Synchronous FAISS build (runs in thread pool)."""
         try:
@@ -239,15 +242,15 @@ class FaissIndex(VectorIndex):
         if self._index_type == "flat":
             self._index = faiss.IndexFlatIP(self._dim)  # Inner Product = cosine on normalized
         else:
-            quantizer   = faiss.IndexFlatIP(self._dim)
+            quantizer = faiss.IndexFlatIP(self._dim)
             self._index = faiss.IndexIVFFlat(quantizer, self._dim, self._nlist)
             self._index.train(vecs)
 
         self._index.add(vecs)
         self._chunk_ids = chunk_ids
-        self._texts     = texts
-        self._metadata  = metadata
-        self._is_built  = True
+        self._texts = texts
+        self._metadata = metadata
+        self._is_built = True
 
         logger.info("faiss_index_built", vectors=len(vectors), type=self._index_type)
         return len(vectors)
@@ -255,19 +258,19 @@ class FaissIndex(VectorIndex):
     async def search(
         self,
         query_vector: list[float],
-        top_k:        int = 10,
+        top_k: int = 10,
     ) -> list[IndexSearchResult]:
         """Synchronous FAISS search wrapped in thread pool."""
         import asyncio
+
         return await asyncio.get_event_loop().run_in_executor(
-            None,
-            self._search_sync, query_vector, top_k
+            None, self._search_sync, query_vector, top_k
         )
 
     def _search_sync(
         self,
         query_vector: list[float],
-        top_k:        int,
+        top_k: int,
     ) -> list[IndexSearchResult]:
         """Inner sync search — normalize query and run faiss.search()."""
         import faiss
@@ -278,54 +281,64 @@ class FaissIndex(VectorIndex):
         q = np.array([query_vector], dtype=np.float32)
         faiss.normalize_L2(q)
 
-        k       = min(top_k, len(self._chunk_ids))
+        k = min(top_k, len(self._chunk_ids))
         scores, indices = self._index.search(q, k)
 
         results = []
         for rank, (score, idx) in enumerate(zip(scores[0], indices[0]), start=1):
             if idx == -1:
                 continue  # FAISS returns -1 for empty slots
-            results.append(IndexSearchResult(
-                chunk_id   = self._chunk_ids[idx],
-                text       = self._texts[idx],
-                score      = float(score),
-                rank       = rank,
-                metadata   = self._metadata[idx],
-            ))
+            results.append(
+                IndexSearchResult(
+                    chunk_id=self._chunk_ids[idx],
+                    text=self._texts[idx],
+                    score=float(score),
+                    rank=rank,
+                    metadata=self._metadata[idx],
+                )
+            )
         return results
 
     async def save(self, path: str) -> None:
         """Save FAISS index + metadata to disk."""
-        import asyncio, faiss
+        import asyncio
+
+        import faiss
+
         p = Path(path)
         p.mkdir(parents=True, exist_ok=True)
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: faiss.write_index(self._index, str(p / "index.faiss"))
         )
         with open(p / "meta.pkl", "wb") as f:
-            pickle.dump({
-                "chunk_ids": self._chunk_ids,
-                "texts":     self._texts,
-                "metadata":  self._metadata,
-                "dim":       self._dim,
-            }, f)
+            pickle.dump(
+                {
+                    "chunk_ids": self._chunk_ids,
+                    "texts": self._texts,
+                    "metadata": self._metadata,
+                    "dim": self._dim,
+                },
+                f,
+            )
         logger.info("faiss_index_saved", path=str(path))
 
     async def load(self, path: str) -> None:
         """Load FAISS index + metadata from disk."""
         import faiss
+
         p = Path(path)
         self._index = faiss.read_index(str(p / "index.faiss"))
         with open(p / "meta.pkl", "rb") as f:
             meta = pickle.load(f)
         self._chunk_ids = meta["chunk_ids"]
-        self._texts     = meta["texts"]
-        self._metadata  = meta["metadata"]
-        self._is_built  = True
+        self._texts = meta["texts"]
+        self._metadata = meta["metadata"]
+        self._is_built = True
         logger.info("faiss_index_loaded", path=str(path), vectors=self._index.ntotal)
 
 
 # ─── ChromaDB Backend ─────────────────────────────────────────────────────────
+
 
 class ChromaIndex(VectorIndex):
     """
@@ -346,14 +359,14 @@ class ChromaIndex(VectorIndex):
         collection_name: str,
         host: str = "localhost",
         port: int = 8001,
-        dim:  int = 1536,
+        dim: int = 1536,
     ) -> None:
         self._collection_name = collection_name
-        self._host            = host
-        self._port            = port
-        self._dim             = dim
-        self._collection      = None
-        self._is_built        = False
+        self._host = host
+        self._port = port
+        self._dim = dim
+        self._collection = None
+        self._is_built = False
 
     @property
     def backend_name(self) -> str:
@@ -371,6 +384,7 @@ class ChromaIndex(VectorIndex):
         """Lazy-initialize ChromaDB collection."""
         if self._collection is None:
             import chromadb
+
             client = chromadb.HttpClient(host=self._host, port=self._port)
             self._collection = client.get_or_create_collection(
                 name=self._collection_name,
@@ -381,9 +395,9 @@ class ChromaIndex(VectorIndex):
     async def build(
         self,
         chunk_ids: list[str],
-        texts:     list[str],
-        vectors:   list[list[float]],
-        metadata:  list[dict],
+        texts: list[str],
+        vectors: list[list[float]],
+        metadata: list[dict],
     ) -> int:
         """Add vectors to ChromaDB collection in batches."""
         import asyncio
@@ -393,10 +407,10 @@ class ChromaIndex(VectorIndex):
             BATCH = 500
             for i in range(0, len(chunk_ids), BATCH):
                 collection.add(
-                    ids         = chunk_ids[i:i+BATCH],
-                    embeddings  = vectors[i:i+BATCH],
-                    documents   = texts[i:i+BATCH],
-                    metadatas   = metadata[i:i+BATCH],
+                    ids=chunk_ids[i : i + BATCH],
+                    embeddings=vectors[i : i + BATCH],
+                    documents=texts[i : i + BATCH],
+                    metadatas=metadata[i : i + BATCH],
                 )
             return len(chunk_ids)
 
@@ -407,7 +421,7 @@ class ChromaIndex(VectorIndex):
     async def search(
         self,
         query_vector: list[float],
-        top_k:        int = 10,
+        top_k: int = 10,
     ) -> list[IndexSearchResult]:
         """Query ChromaDB for top_k nearest neighbors."""
         import asyncio
@@ -429,13 +443,15 @@ class ChromaIndex(VectorIndex):
                 ),
                 start=1,
             ):
-                out.append(IndexSearchResult(
-                    chunk_id = cid,
-                    text     = doc,
-                    score    = 1.0 - dist,  # Chroma returns distance, not similarity
-                    rank     = rank,
-                    metadata = meta or {},
-                ))
+                out.append(
+                    IndexSearchResult(
+                        chunk_id=cid,
+                        text=doc,
+                        score=1.0 - dist,  # Chroma returns distance, not similarity
+                        rank=rank,
+                        metadata=meta or {},
+                    )
+                )
             return out
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_search)
@@ -447,10 +463,11 @@ class ChromaIndex(VectorIndex):
     async def load(self, path: str) -> None:
         """ChromaDB loads from server — just re-connect."""
         self._collection = None
-        self._is_built   = True
+        self._is_built = True
 
 
 # ─── IndexRegistry ────────────────────────────────────────────────────────────
+
 
 class IndexRegistry:
     """
@@ -494,10 +511,10 @@ class IndexRegistry:
 
     async def build_from_db(
         self,
-        corpus_id:   str,
-        backend:     str,
+        corpus_id: str,
+        backend: str,
         embed_model: str,
-        db:          AsyncSession,
+        db: AsyncSession,
         index_kwargs: dict | None = None,
     ) -> VectorIndex:
         """
@@ -520,7 +537,7 @@ class IndexRegistry:
         Raises:
             ValueError: If corpus not found or has no embeddings.
         """
-        from backend.models.corpus import Corpus, Chunk
+        from backend.models.corpus import Chunk, Corpus
         from backend.services.embed_hub import SUPPORTED_MODELS
 
         start = time.perf_counter()
@@ -544,13 +561,13 @@ class IndexRegistry:
             raise ValueError(f"No embedded chunks found for corpus '{corpus_id}'")
 
         # Determine dimensions from model config
-        model_cfg  = SUPPORTED_MODELS.get(embed_model)
+        model_cfg = SUPPORTED_MODELS.get(embed_model)
         dimensions = model_cfg.dimensions if model_cfg else 1536
 
         # Prepare data arrays
         chunk_ids = [str(c.id) for c in chunks]
-        texts     = [c.text for c in chunks]
-        vectors   = [list(c.embedding) for c in chunks]
+        texts = [c.text for c in chunks]
+        vectors = [list(c.embedding) for c in chunks]
         metadatas = [c.chunk_metadata or {} for c in chunks]
 
         # Build the appropriate index
@@ -582,10 +599,10 @@ class IndexRegistry:
 
     async def search(
         self,
-        corpus_id:    str,
-        backend:      str,
+        corpus_id: str,
+        backend: str,
         query_vector: list[float],
-        top_k:        int = 10,
+        top_k: int = 10,
     ) -> list[IndexSearchResult]:
         """
         Search a registered index.
@@ -605,7 +622,6 @@ class IndexRegistry:
         index = self.get(corpus_id, backend)
         if index is None:
             raise KeyError(
-                f"No {backend!r} index for corpus '{corpus_id}'. "
-                f"Call build_from_db() first."
+                f"No {backend!r} index for corpus '{corpus_id}'. Call build_from_db() first."
             )
         return await index.search(query_vector, top_k=top_k)

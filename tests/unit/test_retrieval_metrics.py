@@ -24,8 +24,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from eval.metrics.retrieval_metrics import (
     AggregatedEvalScore,
     EvalScore,
@@ -41,8 +39,8 @@ from eval.metrics.retrieval_metrics import (
     reciprocal_rank,
 )
 
-
 # ─── DCG / IDCG ───────────────────────────────────────────────────────────────
+
 
 class TestDCG:
     def test_empty_retrieved(self):
@@ -67,7 +65,7 @@ class TestDCG:
         assert abs(result - expected) < 1e-6
 
     def test_irrelevant_docs_not_counted(self):
-        dcg_with    = dcg_at_k(["a", "x", "y"], {"a": 1.0}, k=3)
+        dcg_with = dcg_at_k(["a", "x", "y"], {"a": 1.0}, k=3)
         dcg_without = dcg_at_k(["a"], {"a": 1.0}, k=1)
         assert abs(dcg_with - dcg_without) < 1e-6
 
@@ -97,12 +95,13 @@ class TestIDCG:
 
 # ─── NDCG@K ──────────────────────────────────────────────────────────────────
 
+
 class TestNDCG:
     def test_perfect_ranking(self):
         """If retrieved order matches ideal order, NDCG = 1.0."""
-        relevant  = {"doc1": 1.0, "doc2": 1.0}
+        relevant = {"doc1": 1.0, "doc2": 1.0}
         retrieved = ["doc1", "doc2", "doc3"]
-        result    = ndcg_at_k(retrieved, relevant, k=10)
+        result = ndcg_at_k(retrieved, relevant, k=10)
         assert abs(result - 1.0) < 1e-6
 
     def test_no_relevant_found(self):
@@ -114,7 +113,7 @@ class TestNDCG:
         """Relevant doc at last position should give very low NDCG."""
         # 10 docs, relevant doc is last
         retrieved = [f"x{i}" for i in range(9)] + ["rel"]
-        result    = ndcg_at_k(retrieved, {"rel": 1.0}, k=10)
+        result = ndcg_at_k(retrieved, {"rel": 1.0}, k=10)
         # Not zero (doc is found at k=10), but very low
         assert 0.0 < result < 0.3
 
@@ -132,7 +131,7 @@ class TestNDCG:
     def test_k_cutoff_matters(self):
         """NDCG@1 should be 0 if relevant doc is at rank 2."""
         retrieved = ["irrelevant", "relevant"]
-        relevant  = {"relevant": 1.0}
+        relevant = {"relevant": 1.0}
         ndcg1 = ndcg_at_k(retrieved, relevant, k=1)
         ndcg2 = ndcg_at_k(retrieved, relevant, k=2)
         assert ndcg1 == 0.0
@@ -144,6 +143,7 @@ class TestNDCG:
 
 
 # ─── Reciprocal Rank ─────────────────────────────────────────────────────────
+
 
 class TestReciprocalRank:
     def test_first_relevant_at_rank_1(self):
@@ -171,6 +171,7 @@ class TestReciprocalRank:
 
 # ─── Precision@K ─────────────────────────────────────────────────────────────
 
+
 class TestPrecisionAtK:
     def test_all_relevant(self):
         result = precision_at_k(["a", "b", "c"], {"a": 1.0, "b": 1.0, "c": 1.0}, k=3)
@@ -195,6 +196,7 @@ class TestPrecisionAtK:
 
 # ─── Recall@K ────────────────────────────────────────────────────────────────
 
+
 class TestRecallAtK:
     def test_all_relevant_retrieved(self):
         result = recall_at_k(["a", "b"], {"a": 1.0, "b": 1.0}, k=2)
@@ -216,6 +218,7 @@ class TestRecallAtK:
 
 # ─── Average Precision@K ─────────────────────────────────────────────────────
 
+
 class TestAveragePrecision:
     def test_perfect_ranking(self):
         # Both relevant docs at ranks 1 and 2
@@ -236,6 +239,7 @@ class TestAveragePrecision:
 
 # ─── Hit Rate@K ──────────────────────────────────────────────────────────────
 
+
 class TestHitRate:
     def test_hit_at_rank_1(self):
         result = hit_rate_at_k(["a", "x"], {"a": 1.0}, k=5)
@@ -255,6 +259,7 @@ class TestHitRate:
 
 
 # ─── evaluate_retrieval() — all-in-one ───────────────────────────────────────
+
 
 class TestEvaluateRetrieval:
     def test_returns_eval_score(self):
@@ -278,22 +283,30 @@ class TestEvaluateRetrieval:
 
     def test_to_dict_has_all_keys(self):
         score = evaluate_retrieval(["a"], {"a": 1.0})
-        d     = score.to_dict()
+        d = score.to_dict()
         required_keys = {
-            "ndcg@10", "ndcg@5", "ndcg@3", "ndcg@1",
-            "mrr", "map@10", "precision@10", "precision@5",
-            "recall@10", "hit_rate@10",
+            "ndcg@10",
+            "ndcg@5",
+            "ndcg@3",
+            "ndcg@1",
+            "mrr",
+            "map@10",
+            "precision@10",
+            "precision@5",
+            "recall@10",
+            "hit_rate@10",
         }
         for key in required_keys:
             assert key in d, f"Missing key: {key}"
 
     def test_retrieved_ids_stored(self):
         retrieved = ["x", "y", "z"]
-        score     = evaluate_retrieval(retrieved, {"x": 1.0})
+        score = evaluate_retrieval(retrieved, {"x": 1.0})
         assert score.retrieved_ids == retrieved
 
 
 # ─── aggregate_scores() ──────────────────────────────────────────────────────
+
 
 class TestAggregateScores:
     def test_empty_list(self):
@@ -302,7 +315,7 @@ class TestAggregateScores:
         assert result.ndcg_at_10 == 0.0
 
     def test_single_score(self):
-        score  = evaluate_retrieval(["a", "b"], {"a": 1.0})
+        score = evaluate_retrieval(["a", "b"], {"a": 1.0})
         result = aggregate_scores([score])
         assert result.query_count == 1
         assert abs(result.ndcg_at_10 - score.ndcg_at_10) < 1e-6
@@ -310,12 +323,26 @@ class TestAggregateScores:
     def test_macro_average(self):
         """Average should be arithmetic mean of individual scores."""
         scores = [
-            EvalScore(ndcg_at_10=0.8, mrr=0.9, map_at_10=0.7,
-                      ndcg_at_5=0.8, ndcg_at_3=0.8,
-                      precision_at_10=0.6, recall_at_10=0.5, hit_rate_at_10=1.0),
-            EvalScore(ndcg_at_10=0.6, mrr=0.7, map_at_10=0.5,
-                      ndcg_at_5=0.6, ndcg_at_3=0.6,
-                      precision_at_10=0.4, recall_at_10=0.3, hit_rate_at_10=0.0),
+            EvalScore(
+                ndcg_at_10=0.8,
+                mrr=0.9,
+                map_at_10=0.7,
+                ndcg_at_5=0.8,
+                ndcg_at_3=0.8,
+                precision_at_10=0.6,
+                recall_at_10=0.5,
+                hit_rate_at_10=1.0,
+            ),
+            EvalScore(
+                ndcg_at_10=0.6,
+                mrr=0.7,
+                map_at_10=0.5,
+                ndcg_at_5=0.6,
+                ndcg_at_3=0.6,
+                precision_at_10=0.4,
+                recall_at_10=0.3,
+                hit_rate_at_10=0.0,
+            ),
         ]
         result = aggregate_scores(scores)
         assert abs(result.ndcg_at_10 - 0.7) < 1e-6
@@ -330,6 +357,6 @@ class TestAggregateScores:
     def test_to_dict_returns_floats(self):
         scores = [evaluate_retrieval(["a"], {"a": 1.0})]
         result = aggregate_scores(scores)
-        d      = result.to_dict()
+        d = result.to_dict()
         for k, v in d.items():
             assert isinstance(v, (int, float)), f"{k} should be numeric"

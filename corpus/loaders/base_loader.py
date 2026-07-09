@@ -43,6 +43,7 @@ logger = structlog.get_logger(__name__)
 
 # ─── Data Classes ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ParsedDocument:
     """
@@ -65,16 +66,16 @@ class ParsedDocument:
         error:       Non-None if partial parse succeeded with warnings.
     """
 
-    text:         str
-    source:       str
-    doc_id:       str             = field(default="")
-    page_count:   int | None      = field(default=None)
-    language:     str             = field(default="en")
-    metadata:     dict[str, Any]  = field(default_factory=dict)
-    tables:       list[list[list[str]]] = field(default_factory=list)
-    images:       list[str]       = field(default_factory=list)
-    parse_time_s: float           = field(default=0.0)
-    error:        str | None      = field(default=None)
+    text: str
+    source: str
+    doc_id: str = field(default="")
+    page_count: int | None = field(default=None)
+    language: str = field(default="en")
+    metadata: dict[str, Any] = field(default_factory=dict)
+    tables: list[list[list[str]]] = field(default_factory=list)
+    images: list[str] = field(default_factory=list)
+    parse_time_s: float = field(default=0.0)
+    error: str | None = field(default=None)
 
     def __post_init__(self) -> None:
         # Auto-generate doc_id from source path if not set
@@ -123,10 +124,10 @@ class LoaderResult:
         duration_s:  Total wall-clock time for the load operation.
     """
 
-    documents:   list[ParsedDocument]
-    failures:    list[tuple[str, str]]  # (source, error_message)
+    documents: list[ParsedDocument]
+    failures: list[tuple[str, str]]  # (source, error_message)
     total_files: int
-    duration_s:  float
+    duration_s: float
 
     @property
     def success_count(self) -> int:
@@ -152,6 +153,7 @@ class LoaderResult:
 
 
 # ─── Abstract Base Loader ─────────────────────────────────────────────────────
+
 
 class BaseLoader(abc.ABC):
     """
@@ -258,7 +260,7 @@ class BaseLoader(abc.ABC):
 
         # ── Parse each file ───────────────────────────────────────────────
         documents: list[ParsedDocument] = []
-        failures:  list[tuple[str, str]] = []
+        failures: list[tuple[str, str]] = []
 
         for file_path in files:
             try:

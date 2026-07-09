@@ -31,24 +31,25 @@ import uuid
 from contextlib import asynccontextmanager
 
 import structlog
+from config.settings import get_settings
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config.settings import get_settings
-from backend.db.base import check_db_connection
+from backend.api.v1.endpoints import agent as agent_router
 
 # Import routers (created in their respective files)
 from backend.api.v1.endpoints import corpus as corpus_router
+from backend.api.v1.endpoints import eval as eval_router
 from backend.api.v1.endpoints import health as health_router
 from backend.api.v1.endpoints import retrieve as retrieve_router
-from backend.api.v1.endpoints import eval as eval_router
-from backend.api.v1.endpoints import agent as agent_router
+from backend.db.base import check_db_connection
 
 settings = get_settings()
 
 # ─── Structured Logging Setup ─────────────────────────────────────────────────
 # Must be configured before the first log call anywhere in the process.
+
 
 def _configure_logging() -> None:
     """
@@ -58,7 +59,7 @@ def _configure_logging() -> None:
     Prod mode: JSON newline-delimited format for log aggregators (Loki, CloudWatch).
     """
     shared_processors = [
-        structlog.contextvars.merge_contextvars,   # merge request-scoped context
+        structlog.contextvars.merge_contextvars,  # merge request-scoped context
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
@@ -85,6 +86,7 @@ logger = structlog.get_logger(__name__)
 
 # ─── Lifespan (replaces on_event startup/shutdown) ───────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -103,6 +105,7 @@ async def lifespan(app: FastAPI):
     # Initialize MinIO bucket if not exists
     try:
         from backend.utils.storage import ensure_bucket_exists
+
         await ensure_bucket_exists()
     except Exception as exc:
         logger.warning("minio_bucket_init_failed", error=str(exc))
@@ -120,6 +123,7 @@ async def lifespan(app: FastAPI):
 
 # ─── Application Factory ──────────────────────────────────────────────────────
 
+
 def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application.
@@ -128,27 +132,28 @@ def create_app() -> FastAPI:
         Fully configured FastAPI instance.
     """
     app = FastAPI(
-        title       = "RetrievalLab API",
-        description = (
+        title="RetrievalLab API",
+        description=(
             "Cross-industry retrieval research platform. "
             "Benchmark, stress-test, and advance RAG retrieval systems."
         ),
-        version     = "0.1.0",
-        docs_url    = "/docs",
-        redoc_url   = "/redoc",
-        openapi_url = "/openapi.json",
-        lifespan    = lifespan,
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
     # ── CORS Middleware ───────────────────────────────────────────────────
     # Allow the React frontend dev server (localhost:3000/5173) in development.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins     = ["http://localhost:3000", "http://localhost:5173"]
-                            if settings.is_development else [],
-        allow_credentials = True,
-        allow_methods     = ["*"],
-        allow_headers     = ["*"],
+        allow_origins=["http://localhost:3000", "http://localhost:5173"]
+        if settings.is_development
+        else [],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # ── Request ID + Timing Middleware ────────────────────────────────────
@@ -162,26 +167,26 @@ def create_app() -> FastAPI:
         - structlog contextvars — included in all log lines for this request
         """
         request_id = str(uuid.uuid4())[:8]
-        start      = time.perf_counter()
+        start = time.perf_counter()
 
         # Bind request_id to all log lines within this request's context
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
-            request_id = request_id,
-            method     = request.method,
-            path       = request.url.path,
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
         )
 
         response = await call_next(request)
 
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
-        response.headers["X-Request-ID"]  = request_id
+        response.headers["X-Request-ID"] = request_id
         response.headers["X-Duration-Ms"] = str(duration_ms)
 
         logger.info(
             "request_complete",
-            status_code = response.status_code,
-            duration_ms = duration_ms,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
         )
 
         return response
@@ -203,11 +208,11 @@ def create_app() -> FastAPI:
         )
 
     # ── Routers ───────────────────────────────────────────────────────────
-    app.include_router(health_router.router,   prefix="/api/v1",          tags=["Health"])
-    app.include_router(corpus_router.router,   prefix="/api/v1/corpus",   tags=["Corpus"])
+    app.include_router(health_router.router, prefix="/api/v1", tags=["Health"])
+    app.include_router(corpus_router.router, prefix="/api/v1/corpus", tags=["Corpus"])
     app.include_router(retrieve_router.router, prefix="/api/v1/retrieve", tags=["Retrieve"])
-    app.include_router(eval_router.router,     prefix="/api/v1/eval",     tags=["Evaluation"])
-    app.include_router(agent_router.router,   prefix="/api/v1/agent",    tags=["Agent"])
+    app.include_router(eval_router.router, prefix="/api/v1/eval", tags=["Evaluation"])
+    app.include_router(agent_router.router, prefix="/api/v1/agent", tags=["Agent"])
 
     logger.info("routers_registered")
     return app

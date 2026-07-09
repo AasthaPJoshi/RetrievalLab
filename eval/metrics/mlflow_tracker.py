@@ -34,9 +34,9 @@ from __future__ import annotations
 
 import json
 import tempfile
+from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import structlog
 
@@ -74,18 +74,18 @@ class MLflowTracker:
 
     # Canonical metric names — never change these once experiments are running
     # (changing names breaks cross-run comparison in MLflow UI)
-    METRIC_PREFIX_RETRIEVAL   = "ret"
-    METRIC_PREFIX_RAGAS       = "ragas"
+    METRIC_PREFIX_RETRIEVAL = "ret"
+    METRIC_PREFIX_RAGAS = "ragas"
     METRIC_PREFIX_ADVERSARIAL = "adv"
 
     def __init__(
         self,
         experiment_name: str | None = None,
-        tracking_uri:    str | None = None,
+        tracking_uri: str | None = None,
     ) -> None:
         self.experiment_name = experiment_name
-        self._tracking_uri   = tracking_uri
-        self._active_run     = None
+        self._tracking_uri = tracking_uri
+        self._active_run = None
 
     def _setup_mlflow(self) -> None:
         """Initialize MLflow connection. Called lazily on first use."""
@@ -107,8 +107,8 @@ class MLflowTracker:
     @contextmanager
     def start_run(
         self,
-        run_name:  str | None = None,
-        tags:      dict[str, str] | None = None,
+        run_name: str | None = None,
+        tags: dict[str, str] | None = None,
     ) -> Generator[str, None, None]:
         """
         Context manager that starts an MLflow run and returns the run ID.
@@ -167,11 +167,12 @@ class MLflowTracker:
             })
         """
         import mlflow
+
         # MLflow params must be strings and ≤ 500 chars
         str_params = {str(k): str(v)[:500] for k, v in config.items()}
         mlflow.log_params(str_params)
 
-    def log_retrieval_scores(self, scores: "AggregatedEvalScore") -> None:
+    def log_retrieval_scores(self, scores: AggregatedEvalScore) -> None:
         """
         Log aggregated retrieval metrics as MLflow metrics.
 
@@ -182,21 +183,22 @@ class MLflowTracker:
             scores: AggregatedEvalScore from aggregate_scores().
         """
         import mlflow
+
         metrics = {
-            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_10":      scores.ndcg_at_10,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_5":       scores.ndcg_at_5,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_3":       scores.ndcg_at_3,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_mrr":             scores.mrr,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_map_at_10":       scores.map_at_10,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_10": scores.ndcg_at_10,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_5": scores.ndcg_at_5,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_ndcg_at_3": scores.ndcg_at_3,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_mrr": scores.mrr,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_map_at_10": scores.map_at_10,
             f"{self.METRIC_PREFIX_RETRIEVAL}_precision_at_10": scores.precision_at_10,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_recall_at_10":    scores.recall_at_10,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_hit_rate_at_10":  scores.hit_rate_at_10,
-            f"{self.METRIC_PREFIX_RETRIEVAL}_query_count":     float(scores.query_count),
+            f"{self.METRIC_PREFIX_RETRIEVAL}_recall_at_10": scores.recall_at_10,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_hit_rate_at_10": scores.hit_rate_at_10,
+            f"{self.METRIC_PREFIX_RETRIEVAL}_query_count": float(scores.query_count),
         }
         mlflow.log_metrics(metrics)
         logger.debug("mlflow_retrieval_scores_logged", ndcg=scores.ndcg_at_10)
 
-    def log_ragas_result(self, result: "RagasResult") -> None:
+    def log_ragas_result(self, result: RagasResult) -> None:
         """
         Log Ragas RAG-quality metrics as MLflow metrics.
 
@@ -206,6 +208,7 @@ class MLflowTracker:
             result: RagasResult from RagasEvaluator.evaluate().
         """
         import mlflow
+
         metrics: dict[str, float] = {}
 
         for attr in ("faithfulness", "context_precision", "context_recall", "answer_relevance"):
@@ -217,7 +220,7 @@ class MLflowTracker:
             mlflow.log_metrics(metrics)
             logger.debug("mlflow_ragas_scores_logged", metrics=list(metrics.keys()))
 
-    def log_adversarial_report(self, report: "AdversarialReport") -> None:
+    def log_adversarial_report(self, report: AdversarialReport) -> None:
         """
         Log adversarial robustness metrics and save full report as artifact.
 
@@ -234,7 +237,7 @@ class MLflowTracker:
         }
         for ar in report.attack_results:
             prefix = f"{self.METRIC_PREFIX_ADVERSARIAL}_{ar.attack_name}"
-            metrics[f"{prefix}_ndcg"]           = ar.attacked_ndcg
+            metrics[f"{prefix}_ndcg"] = ar.attacked_ndcg
             metrics[f"{prefix}_degradation_pct"] = ar.degradation_pct
 
         mlflow.log_metrics(metrics)
@@ -247,17 +250,17 @@ class MLflowTracker:
 
         # Save JSON for programmatic parsing
         report_json = {
-            "corpus_id":          report.corpus_id,
+            "corpus_id": report.corpus_id,
             "overall_robustness": report.overall_robustness,
-            "duration_s":         report.duration_s,
+            "duration_s": report.duration_s,
             "attacks": [
                 {
-                    "name":           ar.attack_name,
-                    "baseline_ndcg":  ar.baseline_ndcg,
-                    "attacked_ndcg":  ar.attacked_ndcg,
-                    "degradation":    ar.degradation,
+                    "name": ar.attack_name,
+                    "baseline_ndcg": ar.baseline_ndcg,
+                    "attacked_ndcg": ar.attacked_ndcg,
+                    "degradation": ar.degradation,
                     "degradation_pct": ar.degradation_pct,
-                    "is_robust":      ar.is_robust,
+                    "is_robust": ar.is_robust,
                 }
                 for ar in report.attack_results
             ],
@@ -269,7 +272,7 @@ class MLflowTracker:
 
     def log_per_query_scores(
         self,
-        per_query_scores: "list[EvalScore]",
+        per_query_scores: list[EvalScore],
         filename: str = "per_query_scores.json",
     ) -> None:
         """
@@ -283,10 +286,10 @@ class MLflowTracker:
 
         data = [
             {
-                "query":       s.query,
-                "ndcg_at_10":  s.ndcg_at_10,
-                "mrr":         s.mrr,
-                "map_at_10":   s.map_at_10,
+                "query": s.query,
+                "ndcg_at_10": s.ndcg_at_10,
+                "mrr": s.mrr,
+                "map_at_10": s.map_at_10,
                 "hit_rate@10": s.hit_rate_at_10,
                 "retrieved_ids": s.retrieved_ids[:5],  # first 5 for preview
             }
@@ -302,9 +305,9 @@ class MLflowTracker:
 
     def get_leaderboard(
         self,
-        corpus_id:   str | None = None,
-        metric:      str = "ret_ndcg_at_10",
-        top_n:       int = 20,
+        corpus_id: str | None = None,
+        metric: str = "ret_ndcg_at_10",
+        top_n: int = 20,
     ) -> list[dict[str, Any]]:
         """
         Query MLflow for the top-N runs by a specified metric.
@@ -333,26 +336,28 @@ class MLflowTracker:
             filter_str += f" and params.corpus_id = '{corpus_id}'"
 
         runs = mlflow.search_runs(
-            filter_string  = filter_str,
-            order_by       = [f"metrics.{metric} DESC"],
-            max_results    = top_n,
+            filter_string=filter_str,
+            order_by=[f"metrics.{metric} DESC"],
+            max_results=top_n,
         )
 
         leaderboard = []
         for _, row in runs.iterrows():
-            leaderboard.append({
-                "run_id":   row["run_id"],
-                "run_name": row.get("tags.mlflow.runName", ""),
-                "metrics":  {
-                    col.replace("metrics.", ""): row[col]
-                    for col in runs.columns
-                    if col.startswith("metrics.") and row[col] == row[col]  # not NaN
-                },
-                "params": {
-                    col.replace("params.", ""): row[col]
-                    for col in runs.columns
-                    if col.startswith("params.")
-                },
-            })
+            leaderboard.append(
+                {
+                    "run_id": row["run_id"],
+                    "run_name": row.get("tags.mlflow.runName", ""),
+                    "metrics": {
+                        col.replace("metrics.", ""): row[col]
+                        for col in runs.columns
+                        if col.startswith("metrics.") and row[col] == row[col]  # not NaN
+                    },
+                    "params": {
+                        col.replace("params.", ""): row[col]
+                        for col in runs.columns
+                        if col.startswith("params.")
+                    },
+                }
+            )
 
         return leaderboard

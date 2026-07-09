@@ -29,9 +29,8 @@ from pydantic import BaseModel, Field
 
 from eval.metrics.retrieval_metrics import (
     EvalScore,
-    AggregatedEvalScore,
-    evaluate_retrieval,
     aggregate_scores,
+    evaluate_retrieval,
 )
 
 logger = structlog.get_logger(__name__)
@@ -39,6 +38,7 @@ router = APIRouter()
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class ScoreRequest(BaseModel):
     """Request for computing retrieval metrics."""
@@ -61,22 +61,25 @@ class BatchScoreRequest(BaseModel):
 
     queries: list[ScoreRequest]
     experiment_name: str = Field(default="", description="MLflow experiment name")
-    log_to_mlflow: bool  = Field(default=False)
+    log_to_mlflow: bool = Field(default=False)
 
 
 class RagasRequest(BaseModel):
     """Request for Ragas RAG pipeline evaluation."""
 
-    questions:     list[str]       = Field(..., description="Query strings")
-    answers:       list[str]       = Field(..., description="LLM-generated answers")
-    contexts:      list[list[str]] = Field(..., description="Retrieved context chunks per question")
-    ground_truths: list[str] | None = Field(default=None, description="Expected answers (for context_recall)")
-    model:         str             = Field(default="gpt-4o-mini", description="LLM judge model")
-    log_to_mlflow: bool            = Field(default=False)
-    experiment_name: str           = Field(default="ragas_eval")
+    questions: list[str] = Field(..., description="Query strings")
+    answers: list[str] = Field(..., description="LLM-generated answers")
+    contexts: list[list[str]] = Field(..., description="Retrieved context chunks per question")
+    ground_truths: list[str] | None = Field(
+        default=None, description="Expected answers (for context_recall)"
+    )
+    model: str = Field(default="gpt-4o-mini", description="LLM judge model")
+    log_to_mlflow: bool = Field(default=False)
+    experiment_name: str = Field(default="ragas_eval")
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/score",
@@ -99,12 +102,12 @@ async def score_retrieval(body: ScoreRequest) -> dict[str, Any]:
         }
     """
     score = evaluate_retrieval(
-        retrieved = body.retrieved_ids,
-        relevant  = body.relevant_ids,
-        query     = body.query,
+        retrieved=body.retrieved_ids,
+        relevant=body.relevant_ids,
+        query=body.query,
     )
     return {
-        "query":   score.query,
+        "query": score.query,
         "metrics": score.to_dict(),
     }
 
@@ -128,9 +131,9 @@ async def batch_score(body: BatchScoreRequest) -> dict[str, Any]:
 
     for q in body.queries:
         score = evaluate_retrieval(
-            retrieved = q.retrieved_ids,
-            relevant  = q.relevant_ids,
-            query     = q.query,
+            retrieved=q.retrieved_ids,
+            relevant=q.relevant_ids,
+            query=q.query,
         )
         per_query_scores.append(score)
 
@@ -141,9 +144,9 @@ async def batch_score(body: BatchScoreRequest) -> dict[str, Any]:
         await _log_to_mlflow(body.experiment_name, agg.to_dict())
 
     return {
-        "query_count":      agg.query_count,
-        "aggregated":       agg.to_dict(),
-        "per_query_count":  len(per_query_scores),
+        "query_count": agg.query_count,
+        "aggregated": agg.to_dict(),
+        "per_query_count": len(per_query_scores),
         "logged_to_mlflow": body.log_to_mlflow,
     }
 
@@ -173,20 +176,20 @@ async def ragas_eval(body: RagasRequest) -> dict[str, Any]:
         )
 
     evaluator = RagasEvaluator(model=body.model)
-    result    = await evaluator.evaluate(
-        questions     = body.questions,
-        answers       = body.answers,
-        contexts      = body.contexts,
-        ground_truths = body.ground_truths,
+    result = await evaluator.evaluate(
+        questions=body.questions,
+        answers=body.answers,
+        contexts=body.contexts,
+        ground_truths=body.ground_truths,
     )
 
     if result.error:
         raise HTTPException(status_code=500, detail=f"Ragas evaluation failed: {result.error}")
 
     output = {
-        "question_count":    result.question_count,
-        "duration_s":        result.duration_s,
-        "model_used":        result.model_used,
+        "question_count": result.question_count,
+        "duration_s": result.duration_s,
+        "model_used": result.model_used,
         "aggregated_scores": result.to_dict(),
     }
 
@@ -206,30 +209,49 @@ async def list_metrics() -> dict[str, Any]:
     """Return descriptions of all available evaluation metrics."""
     return {
         "retrieval_metrics": [
-            {"name": "ndcg@10", "description": "Normalized DCG @ rank 10 (primary metric)", "range": "[0, 1]"},
-            {"name": "ndcg@5",  "description": "Normalized DCG @ rank 5",  "range": "[0, 1]"},
-            {"name": "mrr",     "description": "Mean Reciprocal Rank",      "range": "(0, 1]"},
-            {"name": "map@10",  "description": "Mean Average Precision @ 10", "range": "[0, 1]"},
-            {"name": "precision@10", "description": "Precision @ rank 10",  "range": "[0, 1]"},
-            {"name": "recall@10",    "description": "Recall @ rank 10",     "range": "[0, 1]"},
-            {"name": "hit_rate@10",  "description": "Any relevant in top-10 (binary)", "range": "{0, 1}"},
+            {
+                "name": "ndcg@10",
+                "description": "Normalized DCG @ rank 10 (primary metric)",
+                "range": "[0, 1]",
+            },
+            {"name": "ndcg@5", "description": "Normalized DCG @ rank 5", "range": "[0, 1]"},
+            {"name": "mrr", "description": "Mean Reciprocal Rank", "range": "(0, 1]"},
+            {"name": "map@10", "description": "Mean Average Precision @ 10", "range": "[0, 1]"},
+            {"name": "precision@10", "description": "Precision @ rank 10", "range": "[0, 1]"},
+            {"name": "recall@10", "description": "Recall @ rank 10", "range": "[0, 1]"},
+            {
+                "name": "hit_rate@10",
+                "description": "Any relevant in top-10 (binary)",
+                "range": "{0, 1}",
+            },
         ],
         "rag_metrics": [
-            {"name": "context_precision",  "description": "Fraction of retrieved context that is relevant"},
-            {"name": "context_recall",     "description": "Fraction of ground truth covered by context"},
-            {"name": "faithfulness",       "description": "Answer grounded in retrieved context (0=hallucination)"},
-            {"name": "answer_relevance",   "description": "Answer addresses the question directly"},
+            {
+                "name": "context_precision",
+                "description": "Fraction of retrieved context that is relevant",
+            },
+            {
+                "name": "context_recall",
+                "description": "Fraction of ground truth covered by context",
+            },
+            {
+                "name": "faithfulness",
+                "description": "Answer grounded in retrieved context (0=hallucination)",
+            },
+            {"name": "answer_relevance", "description": "Answer addresses the question directly"},
         ],
     }
 
 
 # ─── Internal Helper ──────────────────────────────────────────────────────────
 
+
 async def _log_to_mlflow(experiment_name: str, metrics: dict[str, float]) -> None:
     """Log metrics to MLflow. Non-blocking — failures are logged but don't raise."""
     try:
         import mlflow
         from config.settings import get_settings
+
         s = get_settings()
         mlflow.set_tracking_uri(s.mlflow.tracking_uri)
         mlflow.set_experiment(experiment_name)

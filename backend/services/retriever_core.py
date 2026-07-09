@@ -48,7 +48,7 @@ from typing import Any, Literal
 import structlog
 
 from backend.services.embed_hub import EmbedHub
-from backend.services.index_registry import IndexRegistry, IndexSearchResult
+from backend.services.index_registry import IndexRegistry
 
 logger = structlog.get_logger(__name__)
 
@@ -56,6 +56,7 @@ RetrievalMode = Literal["sparse", "dense", "hybrid"]
 
 
 # ─── Result Data Class ────────────────────────────────────────────────────────
+
 
 @dataclass
 class RetrievalResult:
@@ -74,31 +75,34 @@ class RetrievalResult:
         latency_ms:     Total retrieval latency in milliseconds.
         metadata:       Chunk metadata.
     """
-    chunk_id:       str
-    text:           str
-    score:          float
-    rank:           int
-    source_doc:     str              = ""
-    retrieval_mode: str              = "hybrid"
-    sparse_rank:    int | None       = None
-    dense_rank:     int | None       = None
-    latency_ms:     float            = 0.0
-    metadata:       dict[str, Any]   = field(default_factory=dict)
+
+    chunk_id: str
+    text: str
+    score: float
+    rank: int
+    source_doc: str = ""
+    retrieval_mode: str = "hybrid"
+    sparse_rank: int | None = None
+    dense_rank: int | None = None
+    latency_ms: float = 0.0
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class RetrievalRequest:
     """Parameters for a single retrieval call."""
-    query:       str
-    corpus_id:   str
-    mode:        RetrievalMode  = "hybrid"
-    top_k:       int            = 10
-    dense_weight:  float        = 0.5   # weight for hybrid combination (unused in RRF)
-    rrf_k:         int          = 60    # RRF damping constant
-    rerank:        bool         = False  # whether to apply cross-encoder reranking (Day 4+)
+
+    query: str
+    corpus_id: str
+    mode: RetrievalMode = "hybrid"
+    top_k: int = 10
+    dense_weight: float = 0.5  # weight for hybrid combination (unused in RRF)
+    rrf_k: int = 60  # RRF damping constant
+    rerank: bool = False  # whether to apply cross-encoder reranking (Day 4+)
 
 
 # ─── RetrieverCore ────────────────────────────────────────────────────────────
+
 
 class RetrieverCore:
     """
@@ -134,15 +138,15 @@ class RetrieverCore:
     def __init__(
         self,
         index_registry: IndexRegistry,
-        embed_hub:       EmbedHub,
-        bm25_indexes:    dict[str, Any] | None = None,
-        default_mode:    RetrievalMode = "hybrid",
+        embed_hub: EmbedHub,
+        bm25_indexes: dict[str, Any] | None = None,
+        default_mode: RetrievalMode = "hybrid",
         default_backend: str = "faiss",
     ) -> None:
         self.index_registry = index_registry
-        self.embed_hub      = embed_hub
-        self.bm25_indexes   = bm25_indexes or {}
-        self.default_mode   = default_mode
+        self.embed_hub = embed_hub
+        self.bm25_indexes = bm25_indexes or {}
+        self.default_mode = default_mode
         self.default_backend = default_backend
 
     # ── Main Entry Point ──────────────────────────────────────────────────────
@@ -163,7 +167,7 @@ class RetrieverCore:
             ValueError: If corpus has no index built for the requested mode.
         """
         start = time.perf_counter()
-        mode  = request.mode
+        mode = request.mode
 
         logger.info(
             "retrieve_started",
@@ -212,22 +216,22 @@ class RetrieverCore:
 
         # Search index
         raw_results = await self.index_registry.search(
-            corpus_id    = request.corpus_id,
-            backend      = self.default_backend,
-            query_vector = query_vector,
-            top_k        = request.top_k,
+            corpus_id=request.corpus_id,
+            backend=self.default_backend,
+            query_vector=query_vector,
+            top_k=request.top_k,
         )
 
         return [
             RetrievalResult(
-                chunk_id       = r.chunk_id,
-                text           = r.text,
-                score          = r.score,
-                rank           = r.rank,
-                source_doc     = r.source_doc,
-                retrieval_mode = "dense",
-                dense_rank     = r.rank,
-                metadata       = r.metadata,
+                chunk_id=r.chunk_id,
+                text=r.text,
+                score=r.score,
+                rank=r.rank,
+                source_doc=r.source_doc,
+                retrieval_mode="dense",
+                dense_rank=r.rank,
+                metadata=r.metadata,
             )
             for r in raw_results
         ]
@@ -254,42 +258,46 @@ class RetrieverCore:
 
     async def _bm25_retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """In-memory BM25 search using rank_bm25."""
-        from rank_bm25 import BM25Okapi
         import asyncio
 
+        from rank_bm25 import BM25Okapi
+
         bm25_data = self.bm25_indexes[request.corpus_id]
-        bm25: BM25Okapi    = bm25_data["bm25"]
+        bm25: BM25Okapi = bm25_data["bm25"]
         chunk_ids: list[str] = bm25_data["chunk_ids"]
-        texts:     list[str] = bm25_data["texts"]
+        texts: list[str] = bm25_data["texts"]
 
         # Tokenize query (simple whitespace tokenization)
         tokenized_query = request.query.lower().split()
 
         def _sync_score():
-            scores  = bm25.get_scores(tokenized_query)
+            scores = bm25.get_scores(tokenized_query)
             top_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-            return top_idx[:request.top_k], scores
+            return top_idx[: request.top_k], scores
 
         top_idx, scores = await asyncio.get_event_loop().run_in_executor(None, _sync_score)
 
         results = []
-        for rank, idx in enumerate(top_idx[:request.top_k], start=1):
-            results.append(RetrievalResult(
-                chunk_id       = chunk_ids[idx],
-                text           = texts[idx],
-                score          = float(scores[idx]),
-                rank           = rank,
-                retrieval_mode = "sparse",
-                sparse_rank    = rank,
-            ))
+        for rank, idx in enumerate(top_idx[: request.top_k], start=1):
+            results.append(
+                RetrievalResult(
+                    chunk_id=chunk_ids[idx],
+                    text=texts[idx],
+                    score=float(scores[idx]),
+                    rank=rank,
+                    retrieval_mode="sparse",
+                    sparse_rank=rank,
+                )
+            )
 
         return results
 
     async def _elasticsearch_retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """BM25 retrieval via Elasticsearch."""
         try:
-            from elasticsearch import AsyncElasticsearch
             from config.settings import get_settings
+            from elasticsearch import AsyncElasticsearch
+
             s = get_settings()
 
             es = AsyncElasticsearch(s.elasticsearch.url)
@@ -306,15 +314,17 @@ class RetrieverCore:
 
             results = []
             for rank, hit in enumerate(response["hits"]["hits"], start=1):
-                results.append(RetrievalResult(
-                    chunk_id       = hit["_id"],
-                    text           = hit["_source"].get("text", ""),
-                    score          = hit["_score"],
-                    rank           = rank,
-                    retrieval_mode = "sparse",
-                    sparse_rank    = rank,
-                    metadata       = hit["_source"].get("metadata", {}),
-                ))
+                results.append(
+                    RetrievalResult(
+                        chunk_id=hit["_id"],
+                        text=hit["_source"].get("text", ""),
+                        score=hit["_score"],
+                        rank=rank,
+                        retrieval_mode="sparse",
+                        sparse_rank=rank,
+                        metadata=hit["_source"].get("metadata", {}),
+                    )
+                )
 
             return results
 
@@ -382,9 +392,9 @@ class RetrieverCore:
 
     def _rrf_fuse(
         self,
-        lists:  list[list[RetrievalResult]],
-        k:      int = 60,
-        top_k:  int = 10,
+        lists: list[list[RetrievalResult]],
+        k: int = 60,
+        top_k: int = 10,
     ) -> list[RetrievalResult]:
         """
         Apply Reciprocal Rank Fusion across multiple ranked lists.
@@ -398,7 +408,7 @@ class RetrieverCore:
             Merged, re-ranked list of RetrievalResult.
         """
         # Track RRF scores and result objects per chunk_id
-        rrf_scores: dict[str, float]           = {}
+        rrf_scores: dict[str, float] = {}
         chunk_data: dict[str, RetrievalResult] = {}
 
         for result_list in lists:
@@ -414,17 +424,19 @@ class RetrieverCore:
         fused: list[RetrievalResult] = []
         for final_rank, cid in enumerate(ranked_ids[:top_k], start=1):
             base = chunk_data[cid]
-            fused.append(RetrievalResult(
-                chunk_id       = base.chunk_id,
-                text           = base.text,
-                score          = rrf_scores[cid],
-                rank           = final_rank,
-                source_doc     = base.source_doc,
-                retrieval_mode = "hybrid",
-                sparse_rank    = base.sparse_rank,
-                dense_rank     = base.dense_rank,
-                metadata       = base.metadata,
-            ))
+            fused.append(
+                RetrievalResult(
+                    chunk_id=base.chunk_id,
+                    text=base.text,
+                    score=rrf_scores[cid],
+                    rank=final_rank,
+                    source_doc=base.source_doc,
+                    retrieval_mode="hybrid",
+                    sparse_rank=base.sparse_rank,
+                    dense_rank=base.dense_rank,
+                    metadata=base.metadata,
+                )
+            )
 
         return fused
 
@@ -432,8 +444,8 @@ class RetrieverCore:
 
     async def build_bm25_index(
         self,
-        corpus_id:  str,
-        db:         "AsyncSession",
+        corpus_id: str,
+        db: AsyncSession,
     ) -> None:
         """
         Build an in-memory BM25 index for a corpus from the database.
@@ -445,28 +457,31 @@ class RetrieverCore:
             corpus_id: Corpus to index.
             db:        Database session.
         """
-        from rank_bm25 import BM25Okapi
-        from backend.models.corpus import Corpus, Chunk
         import asyncio
 
+        from rank_bm25 import BM25Okapi
+
+        from backend.models.corpus import Chunk, Corpus
+
         result = await db.execute(
-            __import__("sqlalchemy", fromlist=["select"]).select(Corpus).where(
-                Corpus.corpus_id == corpus_id
-            )
+            __import__("sqlalchemy", fromlist=["select"])
+            .select(Corpus)
+            .where(Corpus.corpus_id == corpus_id)
         )
         corpus = result.scalar_one_or_none()
         if corpus is None:
             raise ValueError(f"Corpus '{corpus_id}' not found")
 
         chunk_result = await db.execute(
-            __import__("sqlalchemy", fromlist=["select"]).select(Chunk)
+            __import__("sqlalchemy", fromlist=["select"])
+            .select(Chunk)
             .where(Chunk.corpus_id == corpus.id)
             .order_by(Chunk.chunk_index)
         )
         chunks = chunk_result.scalars().all()
 
-        chunk_ids = [str(c.id)   for c in chunks]
-        texts     = [c.text      for c in chunks]
+        chunk_ids = [str(c.id) for c in chunks]
+        texts = [c.text for c in chunks]
         tokenized = [t.lower().split() for t in texts]
 
         def _build():
@@ -475,9 +490,9 @@ class RetrieverCore:
         bm25 = await asyncio.get_event_loop().run_in_executor(None, _build)
 
         self.bm25_indexes[corpus_id] = {
-            "bm25":      bm25,
+            "bm25": bm25,
             "chunk_ids": chunk_ids,
-            "texts":     texts,
+            "texts": texts,
         }
 
         logger.info("bm25_index_built", corpus_id=corpus_id, chunks=len(chunks))

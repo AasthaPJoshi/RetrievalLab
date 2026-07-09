@@ -39,6 +39,7 @@ logger = structlog.get_logger(__name__)
 # TextLoader
 # =============================================================================
 
+
 class TextLoader(BaseLoader):
     """
     Loader for plain text files (.txt, .text, .log, .csv as text).
@@ -92,6 +93,7 @@ class TextLoader(BaseLoader):
 # MarkdownLoader
 # =============================================================================
 
+
 class MarkdownLoader(BaseLoader):
     """
     Loader for Markdown files (.md, .markdown).
@@ -132,10 +134,10 @@ class MarkdownLoader(BaseLoader):
         raw = re.sub(r"```\w*\n?", "", raw)
 
         # Strip markdown syntax
-        raw = re.sub(r"!\[.*?\]\(.*?\)", "", raw)    # images
+        raw = re.sub(r"!\[.*?\]\(.*?\)", "", raw)  # images
         raw = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", raw)  # links → link text
         raw = re.sub(r"[*_]{1,2}([^*_]+)[*_]{1,2}", r"\1", raw)  # bold/italic
-        raw = re.sub(r"~~([^~]+)~~", r"\1", raw)    # strikethrough
+        raw = re.sub(r"~~([^~]+)~~", r"\1", raw)  # strikethrough
         raw = re.sub(r"^>\s+", "", raw, flags=re.MULTILINE)  # blockquotes
         raw = re.sub(r"^[-*+]\s+", "", raw, flags=re.MULTILINE)  # list bullets
         raw = re.sub(r"^\d+\.\s+", "", raw, flags=re.MULTILINE)  # numbered lists
@@ -157,6 +159,7 @@ class MarkdownLoader(BaseLoader):
 # =============================================================================
 # DocxLoader
 # =============================================================================
+
 
 class DocxLoader(BaseLoader):
     """
@@ -221,9 +224,7 @@ class DocxLoader(BaseLoader):
 
                 # Also include table as text if requested
                 if self.include_tables:
-                    table_text = "\n".join(
-                        " | ".join(row) for row in table_data
-                    )
+                    table_text = "\n".join(" | ".join(row) for row in table_data)
                     paragraphs.append(f"\n[TABLE]\n{table_text}\n[/TABLE]")
 
         # ── Extract core metadata ──────────────────────────────────────────
@@ -231,12 +232,12 @@ class DocxLoader(BaseLoader):
         metadata = {
             "source_format": "docx",
             "file_name": path.name,
-            "title":    core.title or "",
-            "author":   core.author or "",
-            "created":  str(core.created) if core.created else "",
+            "title": core.title or "",
+            "author": core.author or "",
+            "created": str(core.created) if core.created else "",
             "modified": str(core.modified) if core.modified else "",
             "paragraph_count": len(paragraphs),
-            "table_count":     len(tables),
+            "table_count": len(tables),
         }
 
         full_text = "\n\n".join(paragraphs)
@@ -252,6 +253,7 @@ class DocxLoader(BaseLoader):
 # =============================================================================
 # HTMLLoader
 # =============================================================================
+
 
 class HTMLLoader(BaseLoader):
     """
@@ -273,8 +275,15 @@ class HTMLLoader(BaseLoader):
 
     # Tags to strip entirely (content not useful for retrieval)
     REMOVE_TAGS = {
-        "script", "style", "nav", "footer", "header",
-        "aside", "advertisement", "noscript", "iframe",
+        "script",
+        "style",
+        "nav",
+        "footer",
+        "header",
+        "aside",
+        "advertisement",
+        "noscript",
+        "iframe",
     }
 
     def supports(self, path: Path) -> bool:

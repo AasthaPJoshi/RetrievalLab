@@ -26,7 +26,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import tempfile
 import textwrap
 from pathlib import Path
@@ -40,6 +39,7 @@ pytestmark = pytest.mark.integration
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def temp_docs_dir():
     """Create a temp directory with sample documents for ingestion."""
@@ -47,7 +47,8 @@ def temp_docs_dir():
         tmp = Path(tmpdir)
 
         # Healthcare document
-        (tmp / "healthcare.txt").write_text(textwrap.dedent("""
+        (tmp / "healthcare.txt").write_text(
+            textwrap.dedent("""
             Cardiovascular disease is the leading cause of death globally.
             Hypertension affects approximately 1.28 billion adults worldwide.
             Risk factors include obesity, sedentary lifestyle, and smoking.
@@ -58,10 +59,12 @@ def temp_docs_dir():
 
             Chronic kidney disease staging is based on GFR and albuminuria.
             Stage 3a: GFR 45-59 mL/min. RAAS inhibitors are first-line therapy.
-        """).strip())
+        """).strip()
+        )
 
         # Finance document
-        (tmp / "finance.txt").write_text(textwrap.dedent("""
+        (tmp / "finance.txt").write_text(
+            textwrap.dedent("""
             Revenue increased 12% year-over-year to $4.2 billion in Q3 2024.
             Operating margin expanded 150 basis points to 24.3%.
             Free cash flow of $892 million represented a 21% FCF margin.
@@ -69,7 +72,8 @@ def temp_docs_dir():
             Risk factors include macroeconomic uncertainty and FX headwinds.
             The company repurchased $400M in shares and declared a $0.25 dividend.
             Net debt of $1.2 billion represents 0.7x EBITDA within target range.
-        """).strip())
+        """).strip()
+        )
 
         yield tmp
 
@@ -100,6 +104,7 @@ def nonexistent_path():
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.requires_db
 @pytest.mark.asyncio
 async def test_ingest_creates_corpus_record(temp_docs_dir):
@@ -107,21 +112,23 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
     Full pipeline: ingest → verify Corpus record exists in DB with correct fields.
     """
     from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
     from backend.models.corpus import Corpus, CorpusStatus
+    from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     corpus_id = "test_integration_001"
 
     async with AsyncSessionLocal() as db:
-        forge  = CorpusForge(db=db)
-        result = await forge.ingest(IngestRequest(
-            corpus_id=corpus_id,
-            source=str(temp_docs_dir),
-            domain="healthcare",
-            strategy="recursive",
-            chunk_size=200,
-            chunk_overlap=20,
-        ))
+        forge = CorpusForge(db=db)
+        result = await forge.ingest(
+            IngestRequest(
+                corpus_id=corpus_id,
+                source=str(temp_docs_dir),
+                domain="healthcare",
+                strategy="recursive",
+                chunk_size=200,
+                chunk_overlap=20,
+            )
+        )
 
     assert result.success, f"Ingest failed: {result.failures}"
     assert result.doc_count > 0
@@ -130,6 +137,7 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
 
     # Verify DB record
     from sqlalchemy import select
+
     async with AsyncSessionLocal() as db:
         row = await db.execute(select(Corpus).where(Corpus.corpus_id == corpus_id))
         corpus = row.scalar_one_or_none()
@@ -143,6 +151,7 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
     # Cleanup
     async with AsyncSessionLocal() as db:
         from sqlalchemy import delete
+
         await db.execute(delete(Corpus).where(Corpus.corpus_id == corpus_id))
         await db.commit()
 
@@ -151,31 +160,32 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
 @pytest.mark.asyncio
 async def test_ingest_creates_chunk_records(single_doc_dir):
     """Verify chunk records are created in the DB after ingestion."""
-    from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
-    from backend.models.corpus import Corpus, Chunk
     from sqlalchemy import select
+
+    from backend.db.base import AsyncSessionLocal
+    from backend.models.corpus import Chunk, Corpus
+    from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     corpus_id = "test_integration_chunks_001"
 
     async with AsyncSessionLocal() as db:
-        forge  = CorpusForge(db=db)
-        result = await forge.ingest(IngestRequest(
-            corpus_id=corpus_id,
-            source=str(single_doc_dir),
-            chunk_size=100,
-            chunk_overlap=10,
-        ))
+        forge = CorpusForge(db=db)
+        result = await forge.ingest(
+            IngestRequest(
+                corpus_id=corpus_id,
+                source=str(single_doc_dir),
+                chunk_size=100,
+                chunk_overlap=10,
+            )
+        )
 
     # Verify chunks in DB
     async with AsyncSessionLocal() as db:
         corpus_row = await db.execute(select(Corpus).where(Corpus.corpus_id == corpus_id))
-        corpus     = corpus_row.scalar_one_or_none()
+        corpus = corpus_row.scalar_one_or_none()
 
         if corpus:
-            chunk_rows = await db.execute(
-                select(Chunk).where(Chunk.corpus_id == corpus.id)
-            )
+            chunk_rows = await db.execute(select(Chunk).where(Chunk.corpus_id == corpus.id))
             chunks = chunk_rows.scalars().all()
 
             assert len(chunks) > 0
@@ -187,6 +197,7 @@ async def test_ingest_creates_chunk_records(single_doc_dir):
         # Cleanup
         if corpus:
             from sqlalchemy import delete
+
             await db.execute(delete(Corpus).where(Corpus.corpus_id == corpus_id))
             await db.commit()
 
@@ -195,20 +206,23 @@ async def test_ingest_creates_chunk_records(single_doc_dir):
 @pytest.mark.asyncio
 async def test_idempotent_reingest(single_doc_dir):
     """Re-ingesting the same corpus with same files should be a no-op."""
-    from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
-    from backend.models.corpus import Corpus
     from sqlalchemy import select
+
+    from backend.db.base import AsyncSessionLocal
+    from backend.models.corpus import Corpus
+    from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     corpus_id = "test_integration_idempotent_001"
 
     async def _do_ingest():
         async with AsyncSessionLocal() as db:
-            forge  = CorpusForge(db=db)
-            return await forge.ingest(IngestRequest(
-                corpus_id=corpus_id,
-                source=str(single_doc_dir),
-            ))
+            forge = CorpusForge(db=db)
+            return await forge.ingest(
+                IngestRequest(
+                    corpus_id=corpus_id,
+                    source=str(single_doc_dir),
+                )
+            )
 
     # First ingest
     result1 = await _do_ingest()
@@ -222,13 +236,13 @@ async def test_idempotent_reingest(single_doc_dir):
     # Verify only one corpus record exists
     async with AsyncSessionLocal() as db:
         from sqlalchemy import func
-        count_row = await db.execute(
-            select(func.count()).where(Corpus.corpus_id == corpus_id)
-        )
+
+        count_row = await db.execute(select(func.count()).where(Corpus.corpus_id == corpus_id))
         assert count_row.scalar() == 1
 
         # Cleanup
         from sqlalchemy import delete
+
         await db.execute(delete(Corpus).where(Corpus.corpus_id == corpus_id))
         await db.commit()
 
@@ -237,32 +251,35 @@ async def test_idempotent_reingest(single_doc_dir):
 @pytest.mark.asyncio
 async def test_force_reingest(single_doc_dir):
     """Force re-ingest should re-run even with same fingerprint."""
+
     from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
     from backend.models.corpus import Corpus
-    from sqlalchemy import select
+    from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     corpus_id = "test_integration_force_001"
 
     async def _ingest(force=False):
         async with AsyncSessionLocal() as db:
             forge = CorpusForge(db=db)
-            return await forge.ingest(IngestRequest(
-                corpus_id=corpus_id,
-                source=str(single_doc_dir),
-                force_reingest=force,
-            ))
+            return await forge.ingest(
+                IngestRequest(
+                    corpus_id=corpus_id,
+                    source=str(single_doc_dir),
+                    force_reingest=force,
+                )
+            )
 
     result1 = await _ingest(force=False)
     assert result1.success
 
-    result2 = await _ingest(force=True)   # should NOT be skipped
+    result2 = await _ingest(force=True)  # should NOT be skipped
     assert result2.success
     assert not result2.skipped, "Force reingest should never be skipped"
 
     # Cleanup
     async with AsyncSessionLocal() as db:
         from sqlalchemy import delete
+
         await db.execute(delete(Corpus).where(Corpus.corpus_id == corpus_id))
         await db.commit()
 
@@ -274,11 +291,13 @@ async def test_ingest_nonexistent_path_returns_failed(nonexistent_path):
     from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     async with AsyncSessionLocal() as db:
-        forge  = CorpusForge(db=db)
-        result = await forge.ingest(IngestRequest(
-            corpus_id="test_nonexistent_path",
-            source=nonexistent_path,
-        ))
+        forge = CorpusForge(db=db)
+        result = await forge.ingest(
+            IngestRequest(
+                corpus_id="test_nonexistent_path",
+                source=nonexistent_path,
+            )
+        )
 
     # Should fail gracefully, not raise
     assert result.status == "FAILED"
@@ -292,11 +311,13 @@ async def test_ingest_empty_directory_returns_failed(empty_dir):
     from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     async with AsyncSessionLocal() as db:
-        forge  = CorpusForge(db=db)
-        result = await forge.ingest(IngestRequest(
-            corpus_id="test_empty_dir",
-            source=str(empty_dir),
-        ))
+        forge = CorpusForge(db=db)
+        result = await forge.ingest(
+            IngestRequest(
+                corpus_id="test_empty_dir",
+                source=str(empty_dir),
+            )
+        )
 
     assert result.status == "FAILED"
     assert result.doc_count == 0
@@ -306,23 +327,26 @@ async def test_ingest_empty_directory_returns_failed(empty_dir):
 @pytest.mark.asyncio
 async def test_multiple_strategies_same_corpus(single_doc_dir):
     """Different chunking strategies on the same source produce different chunk counts."""
+    from sqlalchemy import delete
+
     from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
     from backend.models.corpus import Corpus
-    from sqlalchemy import select, delete
+    from backend.services.corpus_forge import CorpusForge, IngestRequest
 
     async def _ingest_with_strategy(strategy: str, corpus_id: str) -> int:
         async with AsyncSessionLocal() as db:
-            forge  = CorpusForge(db=db)
-            result = await forge.ingest(IngestRequest(
-                corpus_id=corpus_id,
-                source=str(single_doc_dir),
-                strategy=strategy,
-                chunk_size=100,
-            ))
+            forge = CorpusForge(db=db)
+            result = await forge.ingest(
+                IngestRequest(
+                    corpus_id=corpus_id,
+                    source=str(single_doc_dir),
+                    strategy=strategy,
+                    chunk_size=100,
+                )
+            )
         return result.chunk_count
 
-    fixed_count    = await _ingest_with_strategy("fixed",     "test_strat_fixed")
+    fixed_count = await _ingest_with_strategy("fixed", "test_strat_fixed")
     recursive_count = await _ingest_with_strategy("recursive", "test_strat_recursive")
 
     # Both should produce chunks

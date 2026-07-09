@@ -30,18 +30,18 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # ─── Sub-models ──────────────────────────────────────────────────────────────
+
 
 class DatabaseSettings(BaseSettings):
     """PostgreSQL connection settings."""
 
     model_config = SettingsConfigDict(env_prefix="POSTGRES_")
 
-    host:     str = "localhost"
-    port:     int = 5432
-    db:       str = "retrievallab"
-    user:     str = "retrievallab"
+    host: str = "localhost"
+    port: int = 5432
+    db: str = "retrievallab"
+    user: str = "retrievallab"
     password: SecretStr = Field(default=SecretStr("retrievallab_dev_password"))
 
     @property
@@ -62,8 +62,8 @@ class RedisSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="REDIS_")
 
-    host:     str = "localhost"
-    port:     int = 6379
+    host: str = "localhost"
+    port: int = 6379
     password: SecretStr | None = None
 
     @property
@@ -89,11 +89,11 @@ class MinIOSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="MINIO_")
 
-    endpoint:    str        = "localhost:9000"
-    access_key:  SecretStr  = Field(default=SecretStr("minioadmin"))
-    secret_key:  SecretStr  = Field(default=SecretStr("minioadmin"))
-    bucket_name: str        = "retrievallab"
-    secure:      bool       = False
+    endpoint: str = "localhost:9000"
+    access_key: SecretStr = Field(default=SecretStr("minioadmin"))
+    secret_key: SecretStr = Field(default=SecretStr("minioadmin"))
+    bucket_name: str = "retrievallab"
+    secure: bool = False
 
 
 class ChromaSettings(BaseSettings):
@@ -101,8 +101,8 @@ class ChromaSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="CHROMA_")
 
-    host:              str = "localhost"
-    port:              int = 8001
+    host: str = "localhost"
+    port: int = 8001
     collection_prefix: str = "rl_"
 
     @property
@@ -115,7 +115,7 @@ class ElasticsearchSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="ELASTICSEARCH_")
 
-    url:          str = "http://localhost:9200"
+    url: str = "http://localhost:9200"
     index_prefix: str = "rl_"
 
 
@@ -126,13 +126,13 @@ class LLMSettings(BaseSettings):
 
     # API Keys — stored as SecretStr to prevent accidental logging
     anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    openai_api_key:    SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
-    cohere_api_key:    SecretStr | None = Field(default=None, alias="COHERE_API_KEY")
+    openai_api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")
+    cohere_api_key: SecretStr | None = Field(default=None, alias="COHERE_API_KEY")
 
     # Default models
-    default_chat_model:  str = Field(default="claude-3-5-haiku-20241022", alias="DEFAULT_CHAT_MODEL")
-    default_embed_model: str = Field(default="text-embedding-3-small",    alias="DEFAULT_EMBED_MODEL")
-    default_provider:    str = Field(default="anthropic",                 alias="DEFAULT_LLM_PROVIDER")
+    default_chat_model: str = Field(default="claude-3-5-haiku-20241022", alias="DEFAULT_CHAT_MODEL")
+    default_embed_model: str = Field(default="text-embedding-3-small", alias="DEFAULT_EMBED_MODEL")
+    default_provider: str = Field(default="anthropic", alias="DEFAULT_LLM_PROVIDER")
 
     model_config = SettingsConfigDict(populate_by_name=True)
 
@@ -142,8 +142,8 @@ class ChunkingSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="DEFAULT_CHUNK_")
 
-    size:     int = Field(default=512,       alias="DEFAULT_CHUNK_SIZE")
-    overlap:  int = Field(default=64,        alias="DEFAULT_CHUNK_OVERLAP")
+    size: int = Field(default=512, alias="DEFAULT_CHUNK_SIZE")
+    overlap: int = Field(default=64, alias="DEFAULT_CHUNK_OVERLAP")
     strategy: str = Field(default="recursive", alias="DEFAULT_CHUNK_STRATEGY")
 
     model_config = SettingsConfigDict(populate_by_name=True)
@@ -152,9 +152,16 @@ class ChunkingSettings(BaseSettings):
     @classmethod
     def validate_strategy(cls, v: str) -> str:
         valid = {
-            "fixed", "recursive", "semantic", "sentence_window",
-            "raptor", "propositional", "document_structure",
-            "late", "code_aware", "table_aware",
+            "fixed",
+            "recursive",
+            "semantic",
+            "sentence_window",
+            "raptor",
+            "propositional",
+            "document_structure",
+            "late",
+            "code_aware",
+            "table_aware",
         }
         if v not in valid:
             raise ValueError(f"chunk strategy must be one of: {valid}")
@@ -166,7 +173,7 @@ class RetrievalSettings(BaseSettings):
 
     model_config = SettingsConfigDict(populate_by_name=True)
 
-    top_k:     int = Field(default=10,      alias="DEFAULT_TOP_K")
+    top_k: int = Field(default=10, alias="DEFAULT_TOP_K")
     retriever: str = Field(default="hybrid", alias="DEFAULT_RETRIEVER")
 
     @field_validator("retriever")
@@ -183,9 +190,9 @@ class ObservabilitySettings(BaseSettings):
 
     model_config = SettingsConfigDict(populate_by_name=True)
 
-    otel_endpoint:    str  = Field(default="http://localhost:4317", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
-    otel_service_name: str = Field(default="retrievallab-api",     alias="OTEL_SERVICE_NAME")
-    prometheus_port:  int  = Field(default=9090,                   alias="PROMETHEUS_PORT")
+    otel_endpoint: str = Field(default="http://localhost:4317", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_service_name: str = Field(default="retrievallab-api", alias="OTEL_SERVICE_NAME")
+    prometheus_port: int = Field(default=9090, alias="PROMETHEUS_PORT")
 
 
 class MLflowSettings(BaseSettings):
@@ -193,11 +200,12 @@ class MLflowSettings(BaseSettings):
 
     model_config = SettingsConfigDict(populate_by_name=True)
 
-    tracking_uri:    str = Field(default="http://localhost:5000",    alias="MLFLOW_TRACKING_URI")
-    experiment_name: str = Field(default="retrievallab_default",     alias="MLFLOW_EXPERIMENT_NAME")
+    tracking_uri: str = Field(default="http://localhost:5000", alias="MLFLOW_TRACKING_URI")
+    experiment_name: str = Field(default="retrievallab_default", alias="MLFLOW_EXPERIMENT_NAME")
 
 
 # ─── Root Settings ───────────────────────────────────────────────────────────
+
 
 class Settings(BaseSettings):
     """
@@ -211,19 +219,19 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore",           # ignore unknown env vars silently
+        extra="ignore",  # ignore unknown env vars silently
     )
 
     # App identity
-    app_name:  str     = "RetrievalLab"
-    app_env:   Literal["development", "staging", "production"] = "development"
-    app_debug: bool    = True
-    app_host:  str     = "0.0.0.0"
-    app_port:  int     = 8000
+    app_name: str = "RetrievalLab"
+    app_env: Literal["development", "staging", "production"] = "development"
+    app_debug: bool = True
+    app_host: str = "0.0.0.0"
+    app_port: int = 8000
     secret_key: SecretStr = Field(default=SecretStr("change_me_in_production_32chars"))
 
     # Logging
-    log_level:  str = "INFO"
+    log_level: str = "INFO"
     log_format: Literal["json", "pretty"] = "pretty"
 
     # Embedding cache
@@ -231,25 +239,23 @@ class Settings(BaseSettings):
     embed_cache_max_size_mb: int = 500
 
     # Sub-models (each reads from its own env prefix)
-    database:      DatabaseSettings      = DatabaseSettings()
-    redis:         RedisSettings         = RedisSettings()
-    minio:         MinIOSettings         = MinIOSettings()
-    chroma:        ChromaSettings        = ChromaSettings()
+    database: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    minio: MinIOSettings = MinIOSettings()
+    chroma: ChromaSettings = ChromaSettings()
     elasticsearch: ElasticsearchSettings = ElasticsearchSettings()
-    llm:           LLMSettings           = LLMSettings()
-    chunking:      ChunkingSettings      = ChunkingSettings()
-    retrieval:     RetrievalSettings     = RetrievalSettings()
+    llm: LLMSettings = LLMSettings()
+    chunking: ChunkingSettings = ChunkingSettings()
+    retrieval: RetrievalSettings = RetrievalSettings()
     observability: ObservabilitySettings = ObservabilitySettings()
-    mlflow:        MLflowSettings        = MLflowSettings()
+    mlflow: MLflowSettings = MLflowSettings()
 
     @model_validator(mode="after")
-    def warn_missing_api_keys(self) -> "Settings":
+    def warn_missing_api_keys(self) -> Settings:
         """Warn (not error) if no LLM API keys are configured."""
-        if (
-            self.llm.anthropic_api_key is None
-            and self.llm.openai_api_key is None
-        ):
+        if self.llm.anthropic_api_key is None and self.llm.openai_api_key is None:
             import warnings
+
             warnings.warn(
                 "No LLM API keys configured. "
                 "Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env for full functionality.",
@@ -267,6 +273,7 @@ class Settings(BaseSettings):
 
 
 # ─── Cached accessor ─────────────────────────────────────────────────────────
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -46,7 +46,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -67,37 +67,37 @@ logger = structlog.get_logger(__name__)
 BEIR_DATASETS = {
     "trec-covid": {
         "description": "COVID-19 biomedical literature retrieval",
-        "domain":      "healthcare",
-        "size":        "171k docs, 50 queries",
-        "metric":      "NDCG@10",
+        "domain": "healthcare",
+        "size": "171k docs, 50 queries",
+        "metric": "NDCG@10",
         "bm25_baseline": 0.656,
     },
     "nfcorpus": {
         "description": "Medical/nutrition information retrieval",
-        "domain":      "healthcare",
-        "size":        "3.6k docs, 323 queries",
-        "metric":      "NDCG@10",
+        "domain": "healthcare",
+        "size": "3.6k docs, 323 queries",
+        "metric": "NDCG@10",
         "bm25_baseline": 0.325,
     },
     "fiqa": {
         "description": "Financial opinion question answering",
-        "domain":      "finance",
-        "size":        "57k docs, 648 queries",
-        "metric":      "NDCG@10",
+        "domain": "finance",
+        "size": "57k docs, 648 queries",
+        "metric": "NDCG@10",
         "bm25_baseline": 0.236,
     },
     "scifact": {
         "description": "Scientific claim verification",
-        "domain":      "general",
-        "size":        "5.2k docs, 300 queries",
-        "metric":      "NDCG@10",
+        "domain": "general",
+        "size": "5.2k docs, 300 queries",
+        "metric": "NDCG@10",
         "bm25_baseline": 0.665,
     },
     "arguana": {
         "description": "Counter-argument retrieval",
-        "domain":      "general",
-        "size":        "8.7k docs, 1.4k queries",
-        "metric":      "NDCG@10",
+        "domain": "general",
+        "size": "8.7k docs, 1.4k queries",
+        "metric": "NDCG@10",
         "bm25_baseline": 0.472,
     },
 }
@@ -105,18 +105,19 @@ BEIR_DATASETS = {
 
 # ─── Result Classes ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class BEIRDatasetResult:
     """Results for a single BEIR dataset."""
 
-    dataset_name:    str
-    retrieval_mode:  str
-    scores:          AggregatedEvalScore
-    bm25_baseline:   float | None = None
-    improvement:     float | None = None   # over BM25 baseline, if known
-    duration_s:      float = 0.0
-    query_count:     int   = 0
-    error:           str | None = None
+    dataset_name: str
+    retrieval_mode: str
+    scores: AggregatedEvalScore
+    bm25_baseline: float | None = None
+    improvement: float | None = None  # over BM25 baseline, if known
+    duration_s: float = 0.0
+    query_count: int = 0
+    error: str | None = None
 
     def __post_init__(self) -> None:
         if self.bm25_baseline and self.bm25_baseline > 0:
@@ -126,10 +127,10 @@ class BEIRDatasetResult:
 
     def to_dict(self) -> dict[str, Any]:
         d = {
-            f"beir_{self.dataset_name}_ndcg@10":  self.scores.ndcg_at_10,
-            f"beir_{self.dataset_name}_mrr":      self.scores.mrr,
-            f"beir_{self.dataset_name}_map@10":   self.scores.map_at_10,
-            f"beir_{self.dataset_name}_queries":  float(self.query_count),
+            f"beir_{self.dataset_name}_ndcg@10": self.scores.ndcg_at_10,
+            f"beir_{self.dataset_name}_mrr": self.scores.mrr,
+            f"beir_{self.dataset_name}_map@10": self.scores.map_at_10,
+            f"beir_{self.dataset_name}_queries": float(self.query_count),
         }
         if self.improvement is not None:
             d[f"beir_{self.dataset_name}_vs_bm25_pct"] = self.improvement
@@ -141,8 +142,8 @@ class BEIRSuiteResult:
     """Results across all BEIR datasets in a run."""
 
     dataset_results: list[BEIRDatasetResult]
-    mean_ndcg:       float = 0.0
-    duration_s:      float = 0.0
+    mean_ndcg: float = 0.0
+    duration_s: float = 0.0
 
     def __post_init__(self) -> None:
         successful = [r for r in self.dataset_results if r.error is None]
@@ -152,7 +153,7 @@ class BEIRSuiteResult:
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
             "beir_mean_ndcg@10": self.mean_ndcg,
-            "beir_duration_s":   self.duration_s,
+            "beir_duration_s": self.duration_s,
         }
         for r in self.dataset_results:
             out.update(r.to_dict())
@@ -170,8 +171,11 @@ class BEIRSuiteResult:
             if r.error:
                 lines.append(f"  {r.dataset_name:<18} {'ERROR':>10}")
             else:
-                improvement = f"+{r.improvement:.1f}%" if r.improvement and r.improvement > 0 else (
-                    f"{r.improvement:.1f}%" if r.improvement else "  N/A")
+                improvement = (
+                    f"+{r.improvement:.1f}%"
+                    if r.improvement and r.improvement > 0
+                    else (f"{r.improvement:.1f}%" if r.improvement else "  N/A")
+                )
                 lines.append(
                     f"  {r.dataset_name:<18} "
                     f"{r.scores.ndcg_at_10:>10.4f} "
@@ -183,6 +187,7 @@ class BEIRSuiteResult:
 
 
 # ─── BEIRRunner ──────────────────────────────────────────────────────────────
+
 
 class BEIRRunner:
     """
@@ -211,19 +216,19 @@ class BEIRRunner:
         self,
         retriever,
         embed_hub,
-        data_dir:       str = "data/beir/",
+        data_dir: str = "data/beir/",
         retrieval_mode: str = "hybrid",
     ) -> None:
-        self.retriever      = retriever
-        self.embed_hub      = embed_hub
-        self.data_dir       = Path(data_dir)
+        self.retriever = retriever
+        self.embed_hub = embed_hub
+        self.data_dir = Path(data_dir)
         self.retrieval_mode = retrieval_mode
 
     async def run(
         self,
         dataset_name: str,
-        top_k:        int = 100,
-        max_queries:  int | None = None,
+        top_k: int = 100,
+        max_queries: int | None = None,
     ) -> BEIRDatasetResult:
         """
         Run BEIR evaluation on a single dataset.
@@ -241,8 +246,7 @@ class BEIRRunner:
         """
         if dataset_name not in BEIR_DATASETS:
             raise ValueError(
-                f"Unknown BEIR dataset: {dataset_name!r}. "
-                f"Available: {list(BEIR_DATASETS.keys())}"
+                f"Unknown BEIR dataset: {dataset_name!r}. Available: {list(BEIR_DATASETS.keys())}"
             )
 
         start = time.perf_counter()
@@ -261,7 +265,7 @@ class BEIRRunner:
 
             if max_queries:
                 query_ids = list(queries.keys())[:max_queries]
-                queries   = {qid: queries[qid] for qid in query_ids}
+                queries = {qid: queries[qid] for qid in query_ids}
 
             # 2. Ingest corpus into RetrievalLab
             corpus_id = f"beir_{dataset_name}"
@@ -271,9 +275,7 @@ class BEIRRunner:
             await self._build_index(corpus_id)
 
             # 4. Run all queries and collect results
-            per_query_scores = await self._eval_all_queries(
-                queries, corpus_id, qrels, top_k
-            )
+            per_query_scores = await self._eval_all_queries(queries, corpus_id, qrels, top_k)
 
             # 5. Aggregate
             agg = aggregate_scores(per_query_scores)
@@ -289,28 +291,28 @@ class BEIRRunner:
             )
 
             return BEIRDatasetResult(
-                dataset_name   = dataset_name,
-                retrieval_mode = self.retrieval_mode,
-                scores         = agg,
-                bm25_baseline  = config.get("bm25_baseline"),
-                duration_s     = duration,
-                query_count    = len(per_query_scores),
+                dataset_name=dataset_name,
+                retrieval_mode=self.retrieval_mode,
+                scores=agg,
+                bm25_baseline=config.get("bm25_baseline"),
+                duration_s=duration,
+                query_count=len(per_query_scores),
             )
 
         except Exception as exc:
             logger.error("beir_dataset_failed", dataset=dataset_name, error=str(exc))
             return BEIRDatasetResult(
-                dataset_name   = dataset_name,
-                retrieval_mode = self.retrieval_mode,
-                scores         = AggregatedEvalScore(),
-                error          = str(exc),
-                duration_s     = time.perf_counter() - start,
+                dataset_name=dataset_name,
+                retrieval_mode=self.retrieval_mode,
+                scores=AggregatedEvalScore(),
+                error=str(exc),
+                duration_s=time.perf_counter() - start,
             )
 
     async def run_suite(
         self,
-        datasets:    list[str] | None = None,
-        top_k:       int = 100,
+        datasets: list[str] | None = None,
+        top_k: int = 100,
         max_queries: int | None = None,
     ) -> BEIRSuiteResult:
         """
@@ -325,16 +327,16 @@ class BEIRRunner:
             BEIRSuiteResult with all dataset results and mean NDCG@10.
         """
         datasets = datasets or list(BEIR_DATASETS.keys())
-        start    = time.perf_counter()
-        results  = []
+        start = time.perf_counter()
+        results = []
 
         for dataset in datasets:
             result = await self.run(dataset, top_k=top_k, max_queries=max_queries)
             results.append(result)
 
         return BEIRSuiteResult(
-            dataset_results = results,
-            duration_s      = time.perf_counter() - start,
+            dataset_results=results,
+            duration_s=time.perf_counter() - start,
         )
 
     # ── Internal Pipeline Steps ───────────────────────────────────────────────
@@ -365,9 +367,7 @@ class BEIRRunner:
             url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset_name}.zip"
             beir_util.download_and_unzip(url, str(self.data_dir))
 
-        corpus, queries, qrels = GenericDataLoader(
-            data_folder=str(dataset_path)
-        ).load(split="test")
+        corpus, queries, qrels = GenericDataLoader(data_folder=str(dataset_path)).load(split="test")
 
         logger.info(
             "beir_dataset_loaded",
@@ -380,15 +380,15 @@ class BEIRRunner:
     async def _ingest_corpus(
         self,
         corpus_id: str,
-        corpus:    dict,
-        domain:    str,
+        corpus: dict,
+        domain: str,
     ) -> None:
         """
         Write BEIR corpus to temporary files and ingest into RetrievalLab.
 
         Reuses existing corpus if already ingested (idempotent).
         """
-        import tempfile, os, json
+        import json
 
         # Write corpus to temp dir
         tmp_dir = self.data_dir / "tmp" / corpus_id
@@ -401,11 +401,11 @@ class BEIRRunner:
                 f.write(json.dumps({"id": doc_id, "text": text.strip()}) + "\n")
 
         # Ingest using CorpusForge (reuses fingerprint check for idempotency)
-        from backend.services.corpus_forge import CorpusForge, IngestRequest
         from backend.db.base import AsyncSessionLocal
+        from backend.services.corpus_forge import CorpusForge, IngestRequest
 
         async with AsyncSessionLocal() as db:
-            forge   = CorpusForge(db=db)
+            forge = CorpusForge(db=db)
             request = IngestRequest(
                 corpus_id=corpus_id,
                 source=str(corpus_file),
@@ -438,10 +438,10 @@ class BEIRRunner:
 
     async def _eval_all_queries(
         self,
-        queries:  dict[str, str],
+        queries: dict[str, str],
         corpus_id: str,
-        qrels:    dict[str, dict[str, int]],
-        top_k:    int,
+        qrels: dict[str, dict[str, int]],
+        top_k: int,
     ) -> list[EvalScore]:
         """Retrieve results for all queries and compute per-query scores."""
         from backend.services.retriever_core import RetrievalRequest
@@ -456,7 +456,7 @@ class BEIRRunner:
                     mode=self.retrieval_mode,
                     top_k=top_k,
                 )
-                results      = await self.retriever.retrieve(request)
+                results = await self.retriever.retrieve(request)
                 retrieved_ids = [r.chunk_id for r in results]
 
                 # Convert qrels int grades to float

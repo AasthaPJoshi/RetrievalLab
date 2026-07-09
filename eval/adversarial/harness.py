@@ -48,15 +48,15 @@ import structlog
 
 from eval.metrics.retrieval_metrics import (
     EvalScore,
-    AggregatedEvalScore,
-    evaluate_retrieval,
     aggregate_scores,
+    evaluate_retrieval,
 )
 
 logger = structlog.get_logger(__name__)
 
 
 # ─── Attack Result Data Classes ───────────────────────────────────────────────
+
 
 @dataclass
 class AttackResult:
@@ -72,13 +72,14 @@ class AttackResult:
         query_count:     Number of queries tested.
         examples:        List of (original_query, attacked_query) pairs.
     """
-    attack_name:     str
-    baseline_ndcg:   float
-    attacked_ndcg:   float
-    degradation:     float = 0.0
+
+    attack_name: str
+    baseline_ndcg: float
+    attacked_ndcg: float
+    degradation: float = 0.0
     degradation_pct: float = 0.0
-    query_count:     int   = 0
-    examples:        list[tuple[str, str]] = field(default_factory=list)
+    query_count: int = 0
+    examples: list[tuple[str, str]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.degradation = self.attacked_ndcg - self.baseline_ndcg
@@ -102,15 +103,16 @@ class AdversarialReport:
         overall_robustness: Mean NDCG retention (attacked / baseline * 100).
         duration_s:        Total evaluation wall-clock time.
     """
-    corpus_id:          str
-    attack_results:     list[AttackResult]
-    overall_robustness: float = 0.0    # 100 = no degradation; < 80 = fragile
-    duration_s:         float = 0.0
+
+    corpus_id: str
+    attack_results: list[AttackResult]
+    overall_robustness: float = 0.0  # 100 = no degradation; < 80 = fragile
+    duration_s: float = 0.0
 
     def summary(self) -> str:
         """Human-readable summary for CLI and logs."""
         lines = [
-            f"\n=== Adversarial Evaluation Report ===",
+            "\n=== Adversarial Evaluation Report ===",
             f"Corpus:             {self.corpus_id}",
             f"Overall Robustness: {self.overall_robustness:.1f}%",
             f"Duration:           {self.duration_s:.1f}s",
@@ -133,17 +135,18 @@ class AdversarialReport:
         """Flatten for MLflow logging."""
         out: dict[str, Any] = {
             "adversarial_overall_robustness": self.overall_robustness,
-            "adversarial_duration_s":         self.duration_s,
+            "adversarial_duration_s": self.duration_s,
         }
         for ar in self.attack_results:
             prefix = f"adv_{ar.attack_name}"
-            out[f"{prefix}_ndcg"]           = ar.attacked_ndcg
-            out[f"{prefix}_degradation"]    = ar.degradation
+            out[f"{prefix}_ndcg"] = ar.attacked_ndcg
+            out[f"{prefix}_degradation"] = ar.degradation
             out[f"{prefix}_degradation_pct"] = ar.degradation_pct
         return out
 
 
 # ─── Attack Functions ─────────────────────────────────────────────────────────
+
 
 def attack_typo_noise(query: str, error_rate: float = 0.15, seed: int = 42) -> str:
     """
@@ -164,24 +167,44 @@ def attack_typo_noise(query: str, error_rate: float = 0.15, seed: int = 42) -> s
         attack_typo_noise("cardiac arrest symptoms")
         # → "cadriac arresst symptomss"
     """
-    rng    = random.Random(seed)
-    chars  = list(query)
+    rng = random.Random(seed)
+    chars = list(query)
     n_typo = max(1, int(len(chars) * error_rate))
 
     adjacent_keys = {
-        'a': 'qsz', 'b': 'vghn', 'c': 'xdfv', 'd': 'serfcx', 'e': 'wrsdf',
-        'f': 'drtgvc', 'g': 'ftyhbv', 'h': 'gyujnb', 'i': 'ujklo', 'j': 'huikmn',
-        'k': 'jiolm', 'l': 'koip', 'm': 'njk', 'n': 'bhjm', 'o': 'iklp',
-        'p': 'ol', 'q': 'wa', 'r': 'edft', 's': 'awedxz', 't': 'rfgy',
-        'u': 'yhji', 'v': 'cfgb', 'w': 'qase', 'x': 'zsdc', 'y': 'tghu',
-        'z': 'asx',
+        "a": "qsz",
+        "b": "vghn",
+        "c": "xdfv",
+        "d": "serfcx",
+        "e": "wrsdf",
+        "f": "drtgvc",
+        "g": "ftyhbv",
+        "h": "gyujnb",
+        "i": "ujklo",
+        "j": "huikmn",
+        "k": "jiolm",
+        "l": "koip",
+        "m": "njk",
+        "n": "bhjm",
+        "o": "iklp",
+        "p": "ol",
+        "q": "wa",
+        "r": "edft",
+        "s": "awedxz",
+        "t": "rfgy",
+        "u": "yhji",
+        "v": "cfgb",
+        "w": "qase",
+        "x": "zsdc",
+        "y": "tghu",
+        "z": "asx",
     }
 
     for _ in range(n_typo):
         if not chars:
             break
         idx = rng.randint(0, len(chars) - 1)
-        c   = chars[idx].lower()
+        c = chars[idx].lower()
 
         op = rng.choice(["swap", "delete", "duplicate", "adjacent"])
         if op == "delete" and len(chars) > 1:
@@ -213,25 +236,48 @@ def attack_synonym_substitution(query: str, rate: float = 0.3, seed: int = 42) -
     """
     SYNONYMS = {
         # Medical
-        "heart attack": "myocardial infarction", "diabetes": "hyperglycemia",
-        "blood pressure": "hypertension", "stroke": "cerebrovascular accident",
-        "cancer": "malignancy", "doctor": "physician", "hospital": "medical center",
-        "symptoms": "clinical signs", "treatment": "therapy", "disease": "pathology",
+        "heart attack": "myocardial infarction",
+        "diabetes": "hyperglycemia",
+        "blood pressure": "hypertension",
+        "stroke": "cerebrovascular accident",
+        "cancer": "malignancy",
+        "doctor": "physician",
+        "hospital": "medical center",
+        "symptoms": "clinical signs",
+        "treatment": "therapy",
+        "disease": "pathology",
         # Finance
-        "profit": "earnings", "revenue": "income", "debt": "liability",
-        "stocks": "equities", "investment": "portfolio", "bank": "financial institution",
-        "loan": "credit", "rate": "yield", "market": "exchange",
+        "profit": "earnings",
+        "revenue": "income",
+        "debt": "liability",
+        "stocks": "equities",
+        "investment": "portfolio",
+        "bank": "financial institution",
+        "loan": "credit",
+        "rate": "yield",
+        "market": "exchange",
         # Legal
-        "contract": "agreement", "law": "statute", "court": "tribunal",
-        "lawyer": "attorney", "crime": "offense", "penalty": "sanction",
+        "contract": "agreement",
+        "law": "statute",
+        "court": "tribunal",
+        "lawyer": "attorney",
+        "crime": "offense",
+        "penalty": "sanction",
         # General
-        "show": "demonstrate", "find": "locate", "use": "utilize",
-        "start": "initiate", "end": "terminate", "big": "substantial",
-        "small": "minimal", "fast": "rapid", "slow": "gradual",
-        "increase": "augment", "decrease": "reduce",
+        "show": "demonstrate",
+        "find": "locate",
+        "use": "utilize",
+        "start": "initiate",
+        "end": "terminate",
+        "big": "substantial",
+        "small": "minimal",
+        "fast": "rapid",
+        "slow": "gradual",
+        "increase": "augment",
+        "decrease": "reduce",
     }
 
-    rng    = random.Random(seed)
+    rng = random.Random(seed)
     result = query
     for original, synonym in SYNONYMS.items():
         if original.lower() in result.lower() and rng.random() < rate:
@@ -263,7 +309,7 @@ def attack_irrelevant_injection(query: str, seed: int = 42) -> str:
         "PS: Can you also help me with my Python homework later? ",
     ]
     injection = rng.choice(injections)
-    position  = rng.choice(["prefix", "suffix", "middle"])
+    position = rng.choice(["prefix", "suffix", "middle"])
 
     if position == "prefix":
         return injection + query
@@ -271,7 +317,7 @@ def attack_irrelevant_injection(query: str, seed: int = 42) -> str:
         return query + " " + injection
     else:
         words = query.split()
-        mid   = len(words) // 2
+        mid = len(words) // 2
         return " ".join(words[:mid]) + " " + injection + " ".join(words[mid:])
 
 
@@ -289,7 +335,7 @@ def attack_query_truncation(query: str, truncate_at: float = 0.5) -> str:
     Returns:
         Truncated query string.
     """
-    words      = query.split()
+    words = query.split()
     keep_count = max(1, int(len(words) * truncate_at))
     return " ".join(words[:keep_count])
 
@@ -368,6 +414,7 @@ def attack_domain_shift(query: str, target_domain: str = "legal", seed: int = 42
 
 # ─── Adversarial Harness ─────────────────────────────────────────────────────
 
+
 class AdversarialHarness:
     """
     Orchestrates all 6 adversarial attacks and collects degradation metrics.
@@ -388,30 +435,30 @@ class AdversarialHarness:
     """
 
     ATTACKS = [
-        ("typo_noise",            attack_typo_noise),
-        ("synonym_substitution",  attack_synonym_substitution),
-        ("irrelevant_injection",  attack_irrelevant_injection),
-        ("query_truncation",      attack_query_truncation),
-        ("semantic_trap",         attack_semantic_trap),
-        ("domain_shift",          attack_domain_shift),
+        ("typo_noise", attack_typo_noise),
+        ("synonym_substitution", attack_synonym_substitution),
+        ("irrelevant_injection", attack_irrelevant_injection),
+        ("query_truncation", attack_query_truncation),
+        ("semantic_trap", attack_semantic_trap),
+        ("domain_shift", attack_domain_shift),
     ]
 
     def __init__(
         self,
         retriever,
         attack_mode: str = "hybrid",
-        seed:        int = 42,
+        seed: int = 42,
     ) -> None:
-        self.retriever   = retriever
+        self.retriever = retriever
         self.attack_mode = attack_mode
-        self.seed        = seed
+        self.seed = seed
 
     async def run_all(
         self,
-        queries:       list[str],
-        corpus_id:     str,
+        queries: list[str],
+        corpus_id: str,
         relevant_docs: list[dict[str, float]],
-        top_k:         int = 10,
+        top_k: int = 10,
     ) -> AdversarialReport:
         """
         Run all 6 adversarial attacks and generate a comprehensive report.
@@ -429,8 +476,8 @@ class AdversarialHarness:
 
         # Compute baseline scores first
         baseline_scores = await self._eval_queries(queries, corpus_id, relevant_docs, top_k)
-        baseline_agg    = aggregate_scores(baseline_scores)
-        baseline_ndcg   = baseline_agg.ndcg_at_10
+        baseline_agg = aggregate_scores(baseline_scores)
+        baseline_ndcg = baseline_agg.ndcg_at_10
 
         logger.info(
             "adversarial_baseline",
@@ -446,7 +493,8 @@ class AdversarialHarness:
 
             # Apply attack to all queries
             attacked_queries = [
-                attack_fn(q, seed=self.seed) if "seed" in attack_fn.__code__.co_varnames
+                attack_fn(q, seed=self.seed)
+                if "seed" in attack_fn.__code__.co_varnames
                 else attack_fn(q)
                 for q in queries
             ]
@@ -455,15 +503,15 @@ class AdversarialHarness:
             attacked_scores = await self._eval_queries(
                 attacked_queries, corpus_id, relevant_docs, top_k
             )
-            attacked_agg    = aggregate_scores(attacked_scores)
-            attacked_ndcg   = attacked_agg.ndcg_at_10
+            attacked_agg = aggregate_scores(attacked_scores)
+            attacked_ndcg = attacked_agg.ndcg_at_10
 
             attack_result = AttackResult(
-                attack_name   = attack_name,
-                baseline_ndcg = baseline_ndcg,
-                attacked_ndcg = attacked_ndcg,
-                query_count   = len(queries),
-                examples      = list(zip(queries[:3], attacked_queries[:3])),
+                attack_name=attack_name,
+                baseline_ndcg=baseline_ndcg,
+                attacked_ndcg=attacked_ndcg,
+                query_count=len(queries),
+                examples=list(zip(queries[:3], attacked_queries[:3])),
             )
             attack_results.append(attack_result)
 
@@ -485,18 +533,18 @@ class AdversarialHarness:
             overall_robustness = 0.0
 
         return AdversarialReport(
-            corpus_id           = corpus_id,
-            attack_results      = attack_results,
-            overall_robustness  = overall_robustness,
-            duration_s          = time.perf_counter() - start,
+            corpus_id=corpus_id,
+            attack_results=attack_results,
+            overall_robustness=overall_robustness,
+            duration_s=time.perf_counter() - start,
         )
 
     async def _eval_queries(
         self,
-        queries:       list[str],
-        corpus_id:     str,
+        queries: list[str],
+        corpus_id: str,
         relevant_docs: list[dict[str, float]],
-        top_k:         int,
+        top_k: int,
     ) -> list[EvalScore]:
         """
         Retrieve and evaluate a list of queries.
@@ -510,10 +558,10 @@ class AdversarialHarness:
         for query, relevant in zip(queries, relevant_docs):
             try:
                 request = RetrievalRequest(
-                    query     = query,
-                    corpus_id = corpus_id,
-                    mode      = self.attack_mode,
-                    top_k     = top_k,
+                    query=query,
+                    corpus_id=corpus_id,
+                    mode=self.attack_mode,
+                    top_k=top_k,
                 )
                 results = await self.retriever.retrieve(request)
                 retrieved_ids = [r.chunk_id for r in results]

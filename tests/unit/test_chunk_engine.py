@@ -29,17 +29,17 @@ import pytest
 from corpus.chunkers.chunk_engine import (
     ChunkConfig,
     ChunkEngine,
+    DocumentStructureChunker,
     FixedSizeChunker,
     RecursiveChunker,
-    DocumentStructureChunker,
     TableAwareChunker,
     TextChunk,
     count_tokens,
 )
 from corpus.loaders.base_loader import ParsedDocument
 
-
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def short_document() -> ParsedDocument:
@@ -58,11 +58,9 @@ def medium_document() -> ParsedDocument:
         "Artificial intelligence is transforming healthcare delivery. "
         "Machine learning models can detect diseases earlier than human clinicians. "
         "This represents a major shift in diagnostic medicine.",
-
         "Retrieval-augmented generation (RAG) combines large language models "
         "with external knowledge retrieval. The retrieved context grounds the model's "
         "response in factual information from trusted sources.",
-
         "Evaluation of RAG systems requires specialized metrics. Traditional NLP metrics "
         "like ROUGE and BLEU are insufficient for measuring retrieval quality. "
         "Metrics like context precision, recall, and faithfulness are required.",
@@ -107,10 +105,12 @@ Future work will investigate multi-modal retrieval extensions."""
 def document_with_tables() -> ParsedDocument:
     """Document with both prose and table content."""
     tables = [
-        [["Model", "NDCG@10", "Latency (ms)"],
-         ["BM25",  "0.712",   "15"],
-         ["Dense", "0.801",   "45"],
-         ["Hybrid","0.847",   "60"]],
+        [
+            ["Model", "NDCG@10", "Latency (ms)"],
+            ["BM25", "0.712", "15"],
+            ["Dense", "0.801", "45"],
+            ["Hybrid", "0.847", "60"],
+        ],
     ]
     return ParsedDocument(
         text="Performance comparison of retrieval methods.\n\n[TABLE]\nModel | NDCG@10\n[/TABLE]\n\nThe hybrid approach is consistently best.",
@@ -138,6 +138,7 @@ def engine() -> ChunkEngine:
 
 # ─── count_tokens ─────────────────────────────────────────────────────────────
 
+
 class TestCountTokens:
     def test_empty_string(self):
         assert count_tokens("") == 0
@@ -153,11 +154,12 @@ class TestCountTokens:
 
     def test_long_text_scales(self):
         short = count_tokens("word " * 10)
-        long  = count_tokens("word " * 100)
+        long = count_tokens("word " * 100)
         assert long > short * 5  # should scale approximately linearly
 
 
 # ─── FixedSizeChunker ─────────────────────────────────────────────────────────
+
 
 class TestFixedSizeChunker:
     def setup_method(self):
@@ -208,6 +210,7 @@ class TestFixedSizeChunker:
 
 # ─── RecursiveChunker ─────────────────────────────────────────────────────────
 
+
 class TestRecursiveChunker:
     def setup_method(self):
         self.chunker = RecursiveChunker()
@@ -240,13 +243,16 @@ class TestRecursiveChunker:
     def test_chunks_within_max_token_limit(self, medium_document):
         """No chunk should exceed chunk_size significantly."""
         max_tokens = 100
-        config = ChunkConfig(strategy="recursive", chunk_size=max_tokens, max_chunk_size=max_tokens * 2)
+        config = ChunkConfig(
+            strategy="recursive", chunk_size=max_tokens, max_chunk_size=max_tokens * 2
+        )
         chunks = self.chunker.chunk(medium_document, config)
         for chunk in chunks:
             assert chunk.token_count <= max_tokens * 2
 
 
 # ─── DocumentStructureChunker ──────────────────────────────────────────────────
+
 
 class TestDocumentStructureChunker:
     def setup_method(self):
@@ -262,10 +268,7 @@ class TestDocumentStructureChunker:
         config = ChunkConfig(strategy="document_structure", chunk_size=512)
         chunks = self.chunker.chunk(structured_document, config)
         # At least some chunks should have section_heading in metadata
-        chunks_with_heading = [
-            c for c in chunks
-            if "section_heading" in c.metadata
-        ]
+        chunks_with_heading = [c for c in chunks if "section_heading" in c.metadata]
         assert len(chunks_with_heading) >= 1
 
     def test_chunk_text_includes_heading(self, structured_document):
@@ -274,7 +277,9 @@ class TestDocumentStructureChunker:
         # First chunk should start with Introduction heading text
         first_chunk = chunks[0] if chunks else None
         if first_chunk:
-            assert "Introduction" in first_chunk.text or "Introduction" in first_chunk.metadata.get("section_heading", "")
+            assert "Introduction" in first_chunk.text or "Introduction" in first_chunk.metadata.get(
+                "section_heading", ""
+            )
 
     def test_empty_document(self, empty_document):
         config = ChunkConfig(strategy="document_structure", chunk_size=512)
@@ -283,6 +288,7 @@ class TestDocumentStructureChunker:
 
 
 # ─── TableAwareChunker ────────────────────────────────────────────────────────
+
 
 class TestTableAwareChunker:
     def setup_method(self):
@@ -313,12 +319,20 @@ class TestTableAwareChunker:
 
 # ─── ChunkEngine Orchestrator ────────────────────────────────────────────────
 
+
 class TestChunkEngine:
     def test_available_strategies(self, engine):
         """Engine should have all 7 default strategies registered."""
         strategies = engine.available_strategies
-        expected = {"fixed", "recursive", "semantic", "sentence_window",
-                    "document_structure", "propositional", "table_aware"}
+        expected = {
+            "fixed",
+            "recursive",
+            "semantic",
+            "sentence_window",
+            "document_structure",
+            "propositional",
+            "table_aware",
+        }
         for s in expected:
             assert s in strategies, f"Strategy '{s}' not registered"
 
@@ -357,7 +371,6 @@ class TestChunkEngine:
     def test_custom_strategy_registration(self, engine, medium_document):
         """A custom strategy registered at runtime should be usable."""
         from corpus.chunkers.chunk_engine import ChunkStrategy
-        from corpus.loaders.base_loader import ParsedDocument
 
         class TestStrategy(ChunkStrategy):
             @property
@@ -365,12 +378,14 @@ class TestChunkEngine:
                 return "test_custom"
 
             def chunk(self, document: ParsedDocument, config: ChunkConfig) -> list[TextChunk]:
-                return [TextChunk(
-                    text=document.text[:100],
-                    source_doc_id=document.doc_id,
-                    chunk_index=0,
-                    strategy="test_custom",
-                )]
+                return [
+                    TextChunk(
+                        text=document.text[:100],
+                        source_doc_id=document.doc_id,
+                        chunk_index=0,
+                        strategy="test_custom",
+                    )
+                ]
 
         engine.register(TestStrategy())
         assert "test_custom" in engine.available_strategies
@@ -389,6 +404,7 @@ class TestChunkEngine:
 
 
 # ─── TextChunk ────────────────────────────────────────────────────────────────
+
 
 class TestTextChunk:
     def test_token_count_auto_computed(self):

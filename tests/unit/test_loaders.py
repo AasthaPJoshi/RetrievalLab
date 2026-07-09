@@ -22,12 +22,12 @@ from pathlib import Path
 
 import pytest
 
-from corpus.loaders.base_loader import ParsedDocument, LoaderResult
-from corpus.loaders.text_loader import TextLoader, MarkdownLoader, HTMLLoader
+from corpus.loaders.base_loader import ParsedDocument
 from corpus.loaders.loader_registry import LoaderRegistry
-
+from corpus.loaders.text_loader import HTMLLoader, MarkdownLoader, TextLoader
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def tmp_dir():
@@ -44,6 +44,7 @@ def write_file(directory: Path, filename: str, content: str, encoding="utf-8") -
 
 
 # ─── ParsedDocument ───────────────────────────────────────────────────────────
+
 
 class TestParsedDocument:
     def test_auto_generates_doc_id(self):
@@ -78,6 +79,7 @@ class TestParsedDocument:
 
 # ─── TextLoader ──────────────────────────────────────────────────────────────
 
+
 class TestTextLoader:
     def setup_method(self):
         self.loader = TextLoader()
@@ -92,8 +94,8 @@ class TestTextLoader:
 
     def test_load_basic_text(self, tmp_dir):
         content = "Hello world. This is a test document."
-        path    = write_file(tmp_dir, "test.txt", content)
-        result  = self.loader.load(path)
+        path = write_file(tmp_dir, "test.txt", content)
+        result = self.loader.load(path)
 
         assert result.success_count == 1
         assert result.failure_count == 0
@@ -101,20 +103,20 @@ class TestTextLoader:
         assert "Hello world" in doc.text
 
     def test_load_empty_file_returns_no_docs(self, tmp_dir):
-        path   = write_file(tmp_dir, "empty.txt", "")
+        path = write_file(tmp_dir, "empty.txt", "")
         result = self.loader.load(path)
         # Empty file — should produce no documents
         assert result.success_count == 0
 
     def test_load_preserves_content(self, tmp_dir):
         content = "Line 1\nLine 2\nLine 3"
-        path    = write_file(tmp_dir, "lines.txt", content)
-        result  = self.loader.load(path)
+        path = write_file(tmp_dir, "lines.txt", content)
+        result = self.loader.load(path)
         assert "Line 1" in result.documents[0].text
         assert "Line 3" in result.documents[0].text
 
     def test_source_is_file_path(self, tmp_dir):
-        path   = write_file(tmp_dir, "test.txt", "hello")
+        path = write_file(tmp_dir, "test.txt", "hello")
         result = self.loader.load(path)
         assert result.documents[0].source == str(path)
 
@@ -131,6 +133,7 @@ class TestTextLoader:
 
 
 # ─── MarkdownLoader ──────────────────────────────────────────────────────────
+
 
 class TestMarkdownLoader:
     def setup_method(self):
@@ -151,9 +154,9 @@ author: Aastha
 
 This is the actual content of the document.
 """
-        path   = write_file(tmp_dir, "test.md", content)
+        path = write_file(tmp_dir, "test.md", content)
         result = self.loader.load(path)
-        doc    = result.documents[0]
+        doc = result.documents[0]
         # Frontmatter keys should NOT appear in text
         assert "title: Test Doc" not in doc.text
         assert "date: 2024-01-01" not in doc.text
@@ -162,9 +165,9 @@ This is the actual content of the document.
 
     def test_strips_markdown_syntax(self, tmp_dir):
         content = "**Bold text** and _italic_ and `code` here."
-        path    = write_file(tmp_dir, "styled.md", content)
-        result  = self.loader.load(path)
-        text    = result.documents[0].text
+        path = write_file(tmp_dir, "styled.md", content)
+        result = self.loader.load(path)
+        text = result.documents[0].text
         assert "**" not in text
         assert "_" not in text or "italic" in text  # underscores removed, words remain
 
@@ -175,22 +178,23 @@ Content here.
 ## Section Two
 More content.
 """
-        path   = write_file(tmp_dir, "sections.md", content)
+        path = write_file(tmp_dir, "sections.md", content)
         result = self.loader.load(path)
-        meta   = result.documents[0].metadata
+        meta = result.documents[0].metadata
         assert "section_headers" in meta
         assert len(meta["section_headers"]) >= 2
 
     def test_removes_links_keeps_text(self, tmp_dir):
         content = "See [this link](https://example.com) for details."
-        path    = write_file(tmp_dir, "links.md", content)
-        result  = self.loader.load(path)
-        text    = result.documents[0].text
+        path = write_file(tmp_dir, "links.md", content)
+        result = self.loader.load(path)
+        text = result.documents[0].text
         assert "this link" in text
         assert "https://example.com" not in text
 
 
 # ─── HTMLLoader ──────────────────────────────────────────────────────────────
+
 
 class TestHTMLLoader:
     def setup_method(self):
@@ -212,9 +216,9 @@ class TestHTMLLoader:
   </main>
 </body>
 </html>"""
-        path   = write_file(tmp_dir, "test.html", content)
+        path = write_file(tmp_dir, "test.html", content)
         result = self.loader.load(path)
-        text   = result.documents[0].text
+        text = result.documents[0].text
         assert "Main Heading" in text
         assert "main content" in text
 
@@ -223,17 +227,19 @@ class TestHTMLLoader:
 <p>Real content here.</p>
 <script>var x = 'this should not appear';</script>
 </body></html>"""
-        path   = write_file(tmp_dir, "scripts.html", content)
+        path = write_file(tmp_dir, "scripts.html", content)
         result = self.loader.load(path)
-        text   = result.documents[0].text
+        text = result.documents[0].text
         assert "this should not appear" not in text
         assert "Real content" in text
 
     def test_extracts_title_metadata(self, tmp_dir):
-        content = "<html><head><title>My Page Title</title></head><body><p>content</p></body></html>"
-        path    = write_file(tmp_dir, "titled.html", content)
-        result  = self.loader.load(path)
-        meta    = result.documents[0].metadata
+        content = (
+            "<html><head><title>My Page Title</title></head><body><p>content</p></body></html>"
+        )
+        path = write_file(tmp_dir, "titled.html", content)
+        result = self.loader.load(path)
+        meta = result.documents[0].metadata
         assert meta.get("title") == "My Page Title"
 
     def test_removes_nav_and_footer(self, tmp_dir):
@@ -242,9 +248,9 @@ class TestHTMLLoader:
 <main><p>Article content.</p></main>
 <footer>Footer text here</footer>
 </body></html>"""
-        path   = write_file(tmp_dir, "layout.html", content)
+        path = write_file(tmp_dir, "layout.html", content)
         result = self.loader.load(path)
-        text   = result.documents[0].text
+        text = result.documents[0].text
         assert "Navigation links" not in text
         assert "Footer text" not in text
         assert "Article content" in text
@@ -252,36 +258,37 @@ class TestHTMLLoader:
 
 # ─── LoaderRegistry ──────────────────────────────────────────────────────────
 
+
 class TestLoaderRegistry:
     def setup_method(self):
         self.registry = LoaderRegistry()
 
     def test_routes_txt_to_text_loader(self, tmp_dir):
-        p      = write_file(tmp_dir, "file.txt", "content")
+        p = write_file(tmp_dir, "file.txt", "content")
         loader = self.registry.get_loader_for(p)
         assert loader is not None
         assert type(loader).__name__ == "TextLoader"
 
     def test_routes_md_to_markdown_loader(self, tmp_dir):
-        p      = write_file(tmp_dir, "file.md", "# content")
+        p = write_file(tmp_dir, "file.md", "# content")
         loader = self.registry.get_loader_for(p)
         assert loader is not None
         assert type(loader).__name__ == "MarkdownLoader"
 
     def test_routes_html_to_html_loader(self, tmp_dir):
-        p      = write_file(tmp_dir, "file.html", "<html></html>")
+        p = write_file(tmp_dir, "file.html", "<html></html>")
         loader = self.registry.get_loader_for(p)
         assert loader is not None
         assert type(loader).__name__ == "HTMLLoader"
 
     def test_unknown_extension_returns_none(self, tmp_dir):
-        p      = write_file(tmp_dir, "file.xyz", "data")
+        p = write_file(tmp_dir, "file.xyz", "data")
         loader = self.registry.get_loader_for(p)
         assert loader is None
 
     def test_load_mixed_directory(self, tmp_dir):
-        write_file(tmp_dir, "doc1.txt",  "Text document content.")
-        write_file(tmp_dir, "doc2.md",   "# Markdown document\nContent here.")
+        write_file(tmp_dir, "doc1.txt", "Text document content.")
+        write_file(tmp_dir, "doc2.md", "# Markdown document\nContent here.")
         write_file(tmp_dir, "doc3.html", "<html><body><p>HTML content.</p></body></html>")
         write_file(tmp_dir, "ignore.xyz", "Should be ignored")
 
@@ -292,7 +299,7 @@ class TestLoaderRegistry:
         assert result.success_count >= 2  # at least 2 out of 3 should succeed
 
     def test_load_single_file(self, tmp_dir):
-        path   = write_file(tmp_dir, "single.txt", "Single file content.")
+        path = write_file(tmp_dir, "single.txt", "Single file content.")
         result = self.registry.load(path)
         assert result.total_files == 1
         assert result.success_count == 1
@@ -317,7 +324,7 @@ class TestLoaderRegistry:
         registry = LoaderRegistry()
         registry.register(CustomTxtLoader(), priority=999)  # highest priority
 
-        path   = write_file(tmp_dir, "file.txt", "original content")
+        path = write_file(tmp_dir, "file.txt", "original content")
         loader = registry.get_loader_for(path)
         assert type(loader).__name__ == "CustomTxtLoader"
 

@@ -49,48 +49,52 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base
 
-
 # ─── Enumerations ────────────────────────────────────────────────────────────
+
 
 class CorpusDomain(str, enum.Enum):
     """Industry domain of the corpus. Drives domain-specific chunking defaults."""
-    HEALTHCARE   = "healthcare"
-    FINANCE      = "finance"
-    LEGAL        = "legal"
+
+    HEALTHCARE = "healthcare"
+    FINANCE = "finance"
+    LEGAL = "legal"
     MANUFACTURING = "manufacturing"
-    ECOMMERCE    = "ecommerce"
-    EDUCATION    = "education"
+    ECOMMERCE = "ecommerce"
+    EDUCATION = "education"
     CYBERSECURITY = "cybersecurity"
-    GOVERNMENT   = "government"
-    GENERAL      = "general"
+    GOVERNMENT = "government"
+    GENERAL = "general"
 
 
 class CorpusStatus(str, enum.Enum):
     """Ingestion lifecycle state."""
-    PENDING    = "pending"     # queued for ingestion
-    INGESTING  = "ingesting"   # currently being processed
-    CHUNKING   = "chunking"    # documents parsed, chunking in progress
-    EMBEDDING  = "embedding"   # chunks ready, embedding in progress
-    READY      = "ready"       # fully indexed and queryable
-    FAILED     = "failed"      # ingestion failed; see error_message
+
+    PENDING = "pending"  # queued for ingestion
+    INGESTING = "ingesting"  # currently being processed
+    CHUNKING = "chunking"  # documents parsed, chunking in progress
+    EMBEDDING = "embedding"  # chunks ready, embedding in progress
+    READY = "ready"  # fully indexed and queryable
+    FAILED = "failed"  # ingestion failed; see error_message
     DEPRECATED = "deprecated"  # superseded by a newer version
 
 
 class ChunkStrategy(str, enum.Enum):
     """The chunking algorithm used to produce this chunk."""
-    FIXED              = "fixed"
-    RECURSIVE          = "recursive"
-    SEMANTIC           = "semantic"
-    SENTENCE_WINDOW    = "sentence_window"
-    RAPTOR             = "raptor"
-    PROPOSITIONAL      = "propositional"
+
+    FIXED = "fixed"
+    RECURSIVE = "recursive"
+    SEMANTIC = "semantic"
+    SENTENCE_WINDOW = "sentence_window"
+    RAPTOR = "raptor"
+    PROPOSITIONAL = "propositional"
     DOCUMENT_STRUCTURE = "document_structure"
-    LATE               = "late"
-    CODE_AWARE         = "code_aware"
-    TABLE_AWARE        = "table_aware"
+    LATE = "late"
+    CODE_AWARE = "code_aware"
+    TABLE_AWARE = "table_aware"
 
 
 # ─── Corpus Model ────────────────────────────────────────────────────────────
+
 
 class Corpus(Base):
     """
@@ -240,7 +244,7 @@ class Corpus(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    chunks: Mapped[list["Chunk"]] = relationship(
+    chunks: Mapped[list[Chunk]] = relationship(
         "Chunk",
         back_populates="corpus",
         cascade="all, delete-orphan",
@@ -259,6 +263,7 @@ class Corpus(Base):
 
 
 # ─── Chunk Model ─────────────────────────────────────────────────────────────
+
 
 class Chunk(Base):
     """
@@ -363,7 +368,7 @@ class Chunk(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    corpus: Mapped["Corpus"] = relationship("Corpus", back_populates="chunks")
+    corpus: Mapped[Corpus] = relationship("Corpus", back_populates="chunks")
 
     # ── Indexes ──────────────────────────────────────────────────────────────
     __table_args__ = (

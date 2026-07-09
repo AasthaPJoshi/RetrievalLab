@@ -44,11 +44,11 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
-
 
 # ─── Data Classes ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class EvalScore:
@@ -69,41 +69,41 @@ class EvalScore:
     """
 
     # Core metrics (most important first)
-    ndcg_at_10:      float = 0.0
-    ndcg_at_5:       float = 0.0
-    ndcg_at_3:       float = 0.0
-    ndcg_at_1:       float = 0.0
-    mrr:             float = 0.0
-    map_at_10:       float = 0.0
+    ndcg_at_10: float = 0.0
+    ndcg_at_5: float = 0.0
+    ndcg_at_3: float = 0.0
+    ndcg_at_1: float = 0.0
+    mrr: float = 0.0
+    map_at_10: float = 0.0
     precision_at_10: float = 0.0
-    precision_at_5:  float = 0.0
-    precision_at_3:  float = 0.0
-    precision_at_1:  float = 0.0
-    recall_at_10:    float = 0.0
-    recall_at_5:     float = 0.0
-    hit_rate_at_10:  float = 0.0
+    precision_at_5: float = 0.0
+    precision_at_3: float = 0.0
+    precision_at_1: float = 0.0
+    recall_at_10: float = 0.0
+    recall_at_5: float = 0.0
+    hit_rate_at_10: float = 0.0
 
     # Context
-    query:         str        = ""
-    retrieved_ids: list[str]  = field(default_factory=list)
-    relevant_ids:  list[str]  = field(default_factory=list)
+    query: str = ""
+    retrieved_ids: list[str] = field(default_factory=list)
+    relevant_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, float]:
         """Return all numeric metrics as a flat dict (for MLflow logging)."""
         return {
-            "ndcg@10":      self.ndcg_at_10,
-            "ndcg@5":       self.ndcg_at_5,
-            "ndcg@3":       self.ndcg_at_3,
-            "ndcg@1":       self.ndcg_at_1,
-            "mrr":          self.mrr,
-            "map@10":       self.map_at_10,
+            "ndcg@10": self.ndcg_at_10,
+            "ndcg@5": self.ndcg_at_5,
+            "ndcg@3": self.ndcg_at_3,
+            "ndcg@1": self.ndcg_at_1,
+            "mrr": self.mrr,
+            "map@10": self.map_at_10,
             "precision@10": self.precision_at_10,
-            "precision@5":  self.precision_at_5,
-            "precision@3":  self.precision_at_3,
-            "precision@1":  self.precision_at_1,
-            "recall@10":    self.recall_at_10,
-            "recall@5":     self.recall_at_5,
-            "hit_rate@10":  self.hit_rate_at_10,
+            "precision@5": self.precision_at_5,
+            "precision@3": self.precision_at_3,
+            "precision@1": self.precision_at_1,
+            "recall@10": self.recall_at_10,
+            "recall@5": self.recall_at_5,
+            "hit_rate@10": self.hit_rate_at_10,
         }
 
 
@@ -115,36 +115,37 @@ class AggregatedEvalScore:
     Used for BEIR suite results and overall leaderboard scores.
     """
 
-    ndcg_at_10:      float = 0.0
-    ndcg_at_5:       float = 0.0
-    ndcg_at_3:       float = 0.0
-    mrr:             float = 0.0
-    map_at_10:       float = 0.0
+    ndcg_at_10: float = 0.0
+    ndcg_at_5: float = 0.0
+    ndcg_at_3: float = 0.0
+    mrr: float = 0.0
+    map_at_10: float = 0.0
     precision_at_10: float = 0.0
-    recall_at_10:    float = 0.0
-    hit_rate_at_10:  float = 0.0
-    query_count:     int   = 0
+    recall_at_10: float = 0.0
+    hit_rate_at_10: float = 0.0
+    query_count: int = 0
 
     def to_dict(self) -> dict[str, float]:
         return {
-            "avg_ndcg@10":      self.ndcg_at_10,
-            "avg_ndcg@5":       self.ndcg_at_5,
-            "avg_ndcg@3":       self.ndcg_at_3,
-            "avg_mrr":          self.mrr,
-            "avg_map@10":       self.map_at_10,
+            "avg_ndcg@10": self.ndcg_at_10,
+            "avg_ndcg@5": self.ndcg_at_5,
+            "avg_ndcg@3": self.ndcg_at_3,
+            "avg_mrr": self.mrr,
+            "avg_map@10": self.map_at_10,
             "avg_precision@10": self.precision_at_10,
-            "avg_recall@10":    self.recall_at_10,
-            "avg_hit_rate@10":  self.hit_rate_at_10,
-            "query_count":      float(self.query_count),
+            "avg_recall@10": self.recall_at_10,
+            "avg_hit_rate@10": self.hit_rate_at_10,
+            "query_count": float(self.query_count),
         }
 
 
 # ─── Core Metric Functions ────────────────────────────────────────────────────
 
+
 def dcg_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Compute Discounted Cumulative Gain @K.
@@ -165,7 +166,7 @@ def dcg_at_k(
         rel = relevant.get(doc_id, 0.0)
         if rel > 0:
             # Standard DCG formula: (2^rel - 1) / log2(rank + 1)
-            dcg += (2.0 ** rel - 1.0) / math.log2(rank + 1)
+            dcg += (2.0**rel - 1.0) / math.log2(rank + 1)
     return dcg
 
 
@@ -186,14 +187,14 @@ def idcg_at_k(relevant: dict[str, float], k: int) -> float:
     idcg = 0.0
     for rank, rel in enumerate(ideal_rels, start=1):
         if rel > 0:
-            idcg += (2.0 ** rel - 1.0) / math.log2(rank + 1)
+            idcg += (2.0**rel - 1.0) / math.log2(rank + 1)
     return idcg
 
 
 def ndcg_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Compute Normalized Discounted Cumulative Gain @K.
@@ -224,8 +225,8 @@ def ndcg_at_k(
 
 def reciprocal_rank(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int = 10,
+    relevant: dict[str, float],
+    k: int = 10,
 ) -> float:
     """
     Compute Reciprocal Rank for a single query.
@@ -248,8 +249,8 @@ def reciprocal_rank(
 
 def precision_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Precision @K: fraction of top-K retrieved docs that are relevant.
@@ -264,15 +265,15 @@ def precision_at_k(
     Returns:
         Precision @K in [0.0, 1.0].
     """
-    top_k      = list(retrieved[:k])
+    top_k = list(retrieved[:k])
     n_relevant = sum(1 for d in top_k if relevant.get(d, 0.0) > 0)
     return n_relevant / k if k > 0 else 0.0
 
 
 def recall_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Recall @K: fraction of all relevant docs that appear in top-K.
@@ -290,15 +291,15 @@ def recall_at_k(
     n_total = len(relevant)
     if n_total == 0:
         return 0.0
-    top_k      = list(retrieved[:k])
+    top_k = list(retrieved[:k])
     n_relevant = sum(1 for d in top_k if relevant.get(d, 0.0) > 0)
     return n_relevant / n_total
 
 
 def average_precision_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Average Precision @K for a single query.
@@ -321,19 +322,19 @@ def average_precision_at_k(
         return 0.0
 
     hits = 0.0
-    ap   = 0.0
+    ap = 0.0
     for rank, doc_id in enumerate(retrieved[:k], start=1):
         if relevant.get(doc_id, 0.0) > 0:
             hits += 1
-            ap   += hits / rank
+            ap += hits / rank
 
     return ap / n_relevant
 
 
 def hit_rate_at_k(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    k:         int,
+    relevant: dict[str, float],
+    k: int,
 ) -> float:
     """
     Binary hit rate @K: 1.0 if any relevant doc in top-K, else 0.0.
@@ -353,10 +354,11 @@ def hit_rate_at_k(
 
 # ─── All-in-one Evaluator ─────────────────────────────────────────────────────
 
+
 def evaluate_retrieval(
     retrieved: Sequence[str],
-    relevant:  dict[str, float],
-    query:     str = "",
+    relevant: dict[str, float],
+    query: str = "",
 ) -> EvalScore:
     """
     Compute all retrieval metrics for a single query.
@@ -385,22 +387,22 @@ def evaluate_retrieval(
     retrieved = list(retrieved)
 
     return EvalScore(
-        ndcg_at_10      = ndcg_at_k(retrieved, relevant, 10),
-        ndcg_at_5       = ndcg_at_k(retrieved, relevant, 5),
-        ndcg_at_3       = ndcg_at_k(retrieved, relevant, 3),
-        ndcg_at_1       = ndcg_at_k(retrieved, relevant, 1),
-        mrr             = reciprocal_rank(retrieved, relevant, 10),
-        map_at_10       = average_precision_at_k(retrieved, relevant, 10),
-        precision_at_10 = precision_at_k(retrieved, relevant, 10),
-        precision_at_5  = precision_at_k(retrieved, relevant, 5),
-        precision_at_3  = precision_at_k(retrieved, relevant, 3),
-        precision_at_1  = precision_at_k(retrieved, relevant, 1),
-        recall_at_10    = recall_at_k(retrieved, relevant, 10),
-        recall_at_5     = recall_at_k(retrieved, relevant, 5),
-        hit_rate_at_10  = hit_rate_at_k(retrieved, relevant, 10),
-        query           = query,
-        retrieved_ids   = retrieved,
-        relevant_ids    = list(relevant.keys()),
+        ndcg_at_10=ndcg_at_k(retrieved, relevant, 10),
+        ndcg_at_5=ndcg_at_k(retrieved, relevant, 5),
+        ndcg_at_3=ndcg_at_k(retrieved, relevant, 3),
+        ndcg_at_1=ndcg_at_k(retrieved, relevant, 1),
+        mrr=reciprocal_rank(retrieved, relevant, 10),
+        map_at_10=average_precision_at_k(retrieved, relevant, 10),
+        precision_at_10=precision_at_k(retrieved, relevant, 10),
+        precision_at_5=precision_at_k(retrieved, relevant, 5),
+        precision_at_3=precision_at_k(retrieved, relevant, 3),
+        precision_at_1=precision_at_k(retrieved, relevant, 1),
+        recall_at_10=recall_at_k(retrieved, relevant, 10),
+        recall_at_5=recall_at_k(retrieved, relevant, 5),
+        hit_rate_at_10=hit_rate_at_k(retrieved, relevant, 10),
+        query=query,
+        retrieved_ids=retrieved,
+        relevant_ids=list(relevant.keys()),
     )
 
 
@@ -426,13 +428,13 @@ def aggregate_scores(scores: list[EvalScore]) -> AggregatedEvalScore:
         return sum(getattr(s, attr) for s in scores) / n
 
     return AggregatedEvalScore(
-        ndcg_at_10      = avg("ndcg_at_10"),
-        ndcg_at_5       = avg("ndcg_at_5"),
-        ndcg_at_3       = avg("ndcg_at_3"),
-        mrr             = avg("mrr"),
-        map_at_10       = avg("map_at_10"),
-        precision_at_10 = avg("precision_at_10"),
-        recall_at_10    = avg("recall_at_10"),
-        hit_rate_at_10  = avg("hit_rate_at_10"),
-        query_count     = n,
+        ndcg_at_10=avg("ndcg_at_10"),
+        ndcg_at_5=avg("ndcg_at_5"),
+        ndcg_at_3=avg("ndcg_at_3"),
+        mrr=avg("mrr"),
+        map_at_10=avg("map_at_10"),
+        precision_at_10=avg("precision_at_10"),
+        recall_at_10=avg("recall_at_10"),
+        hit_rate_at_10=avg("hit_rate_at_10"),
+        query_count=n,
     )

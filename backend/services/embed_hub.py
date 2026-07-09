@@ -44,32 +44,32 @@ import asyncio
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
 from config.settings import get_settings
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-logger   = structlog.get_logger(__name__)
+logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
 
+
 @dataclass
 class ModelConfig:
     """Configuration for a single embedding model."""
 
-    name:          str            # canonical model name (used as cache key prefix)
-    provider:      str            # "openai" | "cohere" | "local"
-    dimensions:    int            # output vector dimensions
-    max_batch:     int = 512      # max texts per API call
-    max_tokens:    int = 8191     # max tokens per text (truncate if exceeded)
-    requires_key:  str | None = None  # env var name for API key
+    name: str  # canonical model name (used as cache key prefix)
+    provider: str  # "openai" | "cohere" | "local"
+    dimensions: int  # output vector dimensions
+    max_batch: int = 512  # max texts per API call
+    max_tokens: int = 8191  # max tokens per text (truncate if exceeded)
+    requires_key: str | None = None  # env var name for API key
 
 
 SUPPORTED_MODELS: dict[str, ModelConfig] = {
@@ -127,6 +127,7 @@ SUPPORTED_MODELS: dict[str, ModelConfig] = {
 
 # ─── EmbedHub ────────────────────────────────────────────────────────────────
 
+
 class EmbedHub:
     """
     Unified embedding service with multi-provider support and Redis cache.
@@ -155,23 +156,20 @@ class EmbedHub:
     def __init__(
         self,
         model_name: str = "text-embedding-3-small",
-        cache_ttl:  int = 86400,
-        use_cache:  bool = True,
+        cache_ttl: int = 86400,
+        use_cache: bool = True,
     ) -> None:
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
-                f"Model {model_name!r} not supported. "
-                f"Available: {list(SUPPORTED_MODELS.keys())}"
+                f"Model {model_name!r} not supported. Available: {list(SUPPORTED_MODELS.keys())}"
             )
 
         self.model_config = SUPPORTED_MODELS[model_name]
-        self.cache_ttl    = cache_ttl
-        self.use_cache    = use_cache
-        self._redis       = None   # lazy-loaded
-        self._local_model = None   # lazy-loaded for local models
-        self._log         = structlog.get_logger(self.__class__.__name__).bind(
-            model=model_name
-        )
+        self.cache_ttl = cache_ttl
+        self.use_cache = use_cache
+        self._redis = None  # lazy-loaded
+        self._local_model = None  # lazy-loaded for local models
+        self._log = structlog.get_logger(self.__class__.__name__).bind(model=model_name)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -199,9 +197,9 @@ class EmbedHub:
         start = time.perf_counter()
 
         # Separate cached and uncached texts
-        cache_keys    = [self._cache_key(t) for t in texts]
-        cached_vecs   = await self._cache_get_many(cache_keys)
-        uncached_idx  = [i for i, v in enumerate(cached_vecs) if v is None]
+        cache_keys = [self._cache_key(t) for t in texts]
+        cached_vecs = await self._cache_get_many(cache_keys)
+        uncached_idx = [i for i, v in enumerate(cached_vecs) if v is None]
 
         self._log.debug(
             "embed_request",
@@ -213,7 +211,7 @@ class EmbedHub:
         # Fetch uncached vectors from provider
         if uncached_idx:
             uncached_texts = [texts[i] for i in uncached_idx]
-            new_vectors    = await self._embed_batched(uncached_texts)
+            new_vectors = await self._embed_batched(uncached_texts)
 
             # Store new vectors in cache and results
             for list_idx, vec in zip(uncached_idx, new_vectors):
@@ -264,15 +262,14 @@ class EmbedHub:
             stats = await hub.embed_corpus("finance_sec_v1", db=session)
             print(f"Embedded {stats['embedded']} / {stats['embedded'] + stats['skipped']}")
         """
-        from backend.models.corpus import Corpus, Chunk, CorpusStatus
         from datetime import UTC, datetime
+
+        from backend.models.corpus import Chunk, Corpus, CorpusStatus
 
         start = time.perf_counter()
 
         # Look up corpus
-        result  = await db.execute(
-            select(Corpus).where(Corpus.corpus_id == corpus_id)
-        )
+        result = await db.execute(select(Corpus).where(Corpus.corpus_id == corpus_id))
         corpus = result.scalar_one_or_none()
         if corpus is None:
             raise ValueError(f"Corpus '{corpus_id}' not found")
@@ -282,9 +279,9 @@ class EmbedHub:
         await db.commit()
 
         # Fetch unembedded chunks in batches
-        offset         = 0
+        offset = 0
         total_embedded = 0
-        total_failed   = 0
+        total_failed = 0
 
         while True:
             chunk_result = await db.execute(
@@ -306,9 +303,9 @@ class EmbedHub:
                 vectors = await self.embed(texts)
 
                 for chunk, vector in zip(chunks, vectors):
-                    chunk.embedding             = vector
-                    chunk.embedding_model       = self.model_config.name
-                    chunk.embedding_created_at  = datetime.now(UTC)
+                    chunk.embedding = vector
+                    chunk.embedding_model = self.model_config.name
+                    chunk.embedding_created_at = datetime.now(UTC)
 
                 await db.commit()
                 total_embedded += len(chunks)
@@ -342,8 +339,8 @@ class EmbedHub:
 
         return {
             "corpus_id": corpus_id,
-            "embedded":  total_embedded,
-            "failed":    total_failed,
+            "embedded": total_embedded,
+            "failed": total_failed,
             "duration_s": round(duration, 2),
         }
 
@@ -359,7 +356,7 @@ class EmbedHub:
         all_vectors: list[list[float]] = []
 
         for i in range(0, len(texts), max_batch):
-            batch   = texts[i : i + max_batch]
+            batch = texts[i : i + max_batch]
             vectors = await self._embed_provider(batch)
             all_vectors.extend(vectors)
 
@@ -389,7 +386,7 @@ class EmbedHub:
         if api_key is None:
             raise RuntimeError("OPENAI_API_KEY not set in .env")
 
-        client   = AsyncOpenAI(api_key=api_key.get_secret_value())
+        client = AsyncOpenAI(api_key=api_key.get_secret_value())
         response = await client.embeddings.create(
             model=self.model_config.name,
             input=texts,
@@ -431,9 +428,11 @@ class EmbedHub:
         First call downloads the model (~100-400 MB). Subsequent calls use cache.
         Runs in a thread pool to avoid blocking the async event loop.
         """
+
         def _sync_encode():
             if self._local_model is None:
                 from sentence_transformers import SentenceTransformer
+
                 self._local_model = SentenceTransformer(self.model_config.name)
             vectors = self._local_model.encode(
                 texts,
@@ -453,6 +452,7 @@ class EmbedHub:
         if self._redis is None:
             try:
                 import redis.asyncio as aioredis
+
                 self._redis = aioredis.from_url(
                     settings.redis.url,
                     encoding="utf-8",
@@ -480,10 +480,7 @@ class EmbedHub:
 
         try:
             values = await redis.mget(keys)
-            return [
-                json.loads(v) if v is not None else None
-                for v in values
-            ]
+            return [json.loads(v) if v is not None else None for v in values]
         except Exception:
             return [None] * len(keys)
 

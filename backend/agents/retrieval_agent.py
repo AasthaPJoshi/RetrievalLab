@@ -35,16 +35,17 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
 import structlog
 
-from services.observe_lab import observe_lab
+from backend.services.observe_lab import observe_lab
 
 logger = structlog.get_logger(__name__)
 
 
 # ─── State Schema ─────────────────────────────────────────────────────────────
+
 
 class AgentState(TypedDict):
     """
@@ -53,71 +54,75 @@ class AgentState(TypedDict):
     Each node reads from and writes to this dict.
     LangGraph checkpoints this state automatically.
     """
+
     # Input
-    query_text:    str
-    corpus_id:     str
-    mode:          str
-    top_k:         int
+    query_text: str
+    corpus_id: str
+    mode: str
+    top_k: int
 
     # Node 1 outputs
-    query_type:        str           # "factoid" | "analytical" | "comparative" | "exploratory"
-    expanded_query:    str           # rewritten query with synonyms
-    detected_domain:   str           # "healthcare" | "finance" | "legal" | "general"
-    sub_queries:       list[str]     # decomposed sub-queries for complex questions
+    query_type: str  # "factoid" | "analytical" | "comparative" | "exploratory"
+    expanded_query: str  # rewritten query with synonyms
+    detected_domain: str  # "healthcare" | "finance" | "legal" | "general"
+    sub_queries: list[str]  # decomposed sub-queries for complex questions
 
     # Node 2 outputs
-    raw_results:       list[dict]    # retrieved chunks before reranking
-    retrieval_latency: float         # ms
+    raw_results: list[dict]  # retrieved chunks before reranking
+    retrieval_latency: float  # ms
 
     # Node 3 outputs
-    reranked_results:  list[dict]    # after cross-encoder reranking
-    dropped_count:     int           # chunks filtered out
-    rerank_avg_shift:  float         # avg rank position shift caused by reranking
+    reranked_results: list[dict]  # after cross-encoder reranking
+    dropped_count: int  # chunks filtered out
+    rerank_avg_shift: float  # avg rank position shift caused by reranking
 
     # Node 4 outputs
-    answer:            str           # synthesized answer
+    answer: str  # synthesized answer
     synthesis_latency: float
 
     # Node 5 outputs
-    sources:           list[dict]    # [{chunk_id, text, score, rank}]
-    confidence:        float         # 0-1 retrieval-grounded confidence
-    model_confidence:  float | None  # LLM's self-reported confidence, parsed from answer text
-    hallucination_risk: bool         # True if retrieval and model confidence diverge sharply
-    citations:         list[str]     # formatted citation strings
-    trace:             list[str]     # agent execution trace for debugging
+    sources: list[dict]  # [{chunk_id, text, score, rank}]
+    confidence: float  # 0-1 retrieval-grounded confidence
+    model_confidence: float | None  # LLM's self-reported confidence, parsed from answer text
+    hallucination_risk: bool  # True if retrieval and model confidence diverge sharply
+    citations: list[str]  # formatted citation strings
+    trace: list[str]  # agent execution trace for debugging
 
 
 # ─── Request / Response Models ────────────────────────────────────────────────
 
+
 @dataclass
 class AgentQuery:
     """Input to the agentic retrieval pipeline."""
-    query_text:  str
-    corpus_id:   str
-    mode:        str  = "hybrid"
-    top_k:       int  = 10
-    rerank:      bool = True
-    synthesize:  bool = True
-    query_id:    str  = field(default_factory=lambda: str(uuid.uuid4())[:8])
+
+    query_text: str
+    corpus_id: str
+    mode: str = "hybrid"
+    top_k: int = 10
+    rerank: bool = True
+    synthesize: bool = True
+    query_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
 
 
 @dataclass
 class AgentResponse:
     """Complete output from the agentic retrieval pipeline."""
-    query_id:        str
-    query_text:      str
-    answer:          str
-    sources:         list[dict]
-    confidence:      float
+
+    query_id: str
+    query_text: str
+    answer: str
+    sources: list[dict]
+    confidence: float
     model_confidence: float | None
     hallucination_risk: bool
-    citations:       list[str]
-    query_type:      str
+    citations: list[str]
+    query_type: str
     detected_domain: str
-    expanded_query:  str
+    expanded_query: str
     total_latency_ms: float
-    trace:           list[str]
-    error:           str | None = None
+    trace: list[str]
+    error: str | None = None
 
     @property
     def has_answer(self) -> bool:
@@ -125,24 +130,25 @@ class AgentResponse:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "query_id":        self.query_id,
-            "query_text":      self.query_text,
-            "answer":          self.answer,
-            "sources":         self.sources,
-            "confidence":      self.confidence,
-            "model_confidence":   self.model_confidence,
+            "query_id": self.query_id,
+            "query_text": self.query_text,
+            "answer": self.answer,
+            "sources": self.sources,
+            "confidence": self.confidence,
+            "model_confidence": self.model_confidence,
             "hallucination_risk": self.hallucination_risk,
-            "citations":       self.citations,
-            "query_type":      self.query_type,
+            "citations": self.citations,
+            "query_type": self.query_type,
             "detected_domain": self.detected_domain,
-            "expanded_query":  self.expanded_query,
+            "expanded_query": self.expanded_query,
             "total_latency_ms": self.total_latency_ms,
-            "trace":           self.trace,
-            "error":           self.error,
+            "trace": self.trace,
+            "error": self.error,
         }
 
 
 # ─── Individual Node Implementations ─────────────────────────────────────────
+
 
 class QueryAnalyzerNode:
     """
@@ -159,18 +165,78 @@ class QueryAnalyzerNode:
     """
 
     DOMAIN_KEYWORDS = {
-        "healthcare":    {"diagnosis", "treatment", "patient", "clinical", "drug", "symptom", "disease", "medical", "therapy", "glucose", "cardiac"},
-        "finance":       {"revenue", "profit", "ebitda", "margin", "earnings", "investment", "portfolio", "dividend", "stock", "debt", "yield"},
-        "legal":         {"contract", "agreement", "liability", "clause", "statute", "court", "plaintiff", "defendant", "regulation", "compliance"},
-        "manufacturing": {"supply chain", "production", "quality", "defect", "tolerance", "assembly", "specification", "material"},
-        "education":     {"curriculum", "learning", "student", "assessment", "pedagogy", "course", "lecture", "exam"},
+        "healthcare": {
+            "diagnosis",
+            "treatment",
+            "patient",
+            "clinical",
+            "drug",
+            "symptom",
+            "disease",
+            "medical",
+            "therapy",
+            "glucose",
+            "cardiac",
+        },
+        "finance": {
+            "revenue",
+            "profit",
+            "ebitda",
+            "margin",
+            "earnings",
+            "investment",
+            "portfolio",
+            "dividend",
+            "stock",
+            "debt",
+            "yield",
+        },
+        "legal": {
+            "contract",
+            "agreement",
+            "liability",
+            "clause",
+            "statute",
+            "court",
+            "plaintiff",
+            "defendant",
+            "regulation",
+            "compliance",
+        },
+        "manufacturing": {
+            "supply chain",
+            "production",
+            "quality",
+            "defect",
+            "tolerance",
+            "assembly",
+            "specification",
+            "material",
+        },
+        "education": {
+            "curriculum",
+            "learning",
+            "student",
+            "assessment",
+            "pedagogy",
+            "course",
+            "lecture",
+            "exam",
+        },
     }
 
     QUERY_TYPE_PATTERNS = {
-        "factoid":      ["what is", "who is", "when did", "how many", "define", "what are"],
-        "analytical":   ["why does", "how does", "explain", "analyze", "compare", "what causes"],
-        "comparative":  ["difference between", "compare", "versus", "vs", "better than", "advantages"],
-        "exploratory":  ["tell me about", "overview of", "summarize", "what should i know"],
+        "factoid": ["what is", "who is", "when did", "how many", "define", "what are"],
+        "analytical": ["why does", "how does", "explain", "analyze", "compare", "what causes"],
+        "comparative": [
+            "difference between",
+            "compare",
+            "versus",
+            "vs",
+            "better than",
+            "advantages",
+        ],
+        "exploratory": ["tell me about", "overview of", "summarize", "what should i know"],
     }
 
     async def run(self, state: AgentState) -> AgentState:
@@ -205,22 +271,26 @@ class QueryAnalyzerNode:
         latency = (time.perf_counter() - start) * 1000
         observe_lab.record_agent_node("query_analyzer", latency)
 
-        state.update({
-            "query_type":      query_type,
-            "expanded_query":  expanded_query,
-            "detected_domain": detected_domain,
-            "sub_queries":     sub_queries,
-            "trace": state.get("trace", []) + [
-                f"[Node1/QueryAnalyzer] type={query_type} domain={detected_domain} "
-                f"expanded={len(expanded_query)} chars latency={round(latency)}ms"
-            ],
-        })
+        state.update(
+            {
+                "query_type": query_type,
+                "expanded_query": expanded_query,
+                "detected_domain": detected_domain,
+                "sub_queries": sub_queries,
+                "trace": state.get("trace", [])
+                + [
+                    f"[Node1/QueryAnalyzer] type={query_type} domain={detected_domain} "
+                    f"expanded={len(expanded_query)} chars latency={round(latency)}ms"
+                ],
+            }
+        )
         return state
 
     async def _expand_query_llm(self, query: str) -> str:
         """Use LLM to rewrite query with synonym expansion."""
         try:
             from anthropic import Anthropic
+
             client = Anthropic()
             response = client.messages.create(
                 model="claude-3-5-haiku-20241022",
@@ -240,7 +310,9 @@ class QueryAnalyzerNode:
         """Decompose complex query into atomic sub-queries."""
         try:
             import json
+
             from anthropic import Anthropic
+
             client = Anthropic()
             response = client.messages.create(
                 model="claude-3-5-haiku-20241022",
@@ -274,23 +346,23 @@ class MultiRetrieverNode:
         expanded = state.get("expanded_query") or state["query_text"]
 
         request = RetrievalRequest(
-            query     = expanded,
-            corpus_id = state["corpus_id"],
-            mode      = state["mode"],
-            top_k     = state["top_k"],
+            query=expanded,
+            corpus_id=state["corpus_id"],
+            mode=state["mode"],
+            top_k=state["top_k"],
         )
 
         try:
             results = await self.retriever.retrieve(request)
             raw = [
                 {
-                    "chunk_id":    r.chunk_id,
-                    "text":        r.text,
-                    "score":       r.score,
-                    "rank":        r.rank,
-                    "source_doc":  r.source_doc,
-                    "mode":        r.retrieval_mode,
-                    "metadata":    r.metadata,
+                    "chunk_id": r.chunk_id,
+                    "text": r.text,
+                    "score": r.score,
+                    "rank": r.rank,
+                    "source_doc": r.source_doc,
+                    "mode": r.retrieval_mode,
+                    "metadata": r.metadata,
                 }
                 for r in results
             ]
@@ -301,13 +373,16 @@ class MultiRetrieverNode:
         latency = (time.perf_counter() - start) * 1000
         observe_lab.record_agent_node("multi_retriever", latency)
 
-        state.update({
-            "raw_results":       raw,
-            "retrieval_latency": round(latency, 2),
-            "trace": state.get("trace", []) + [
-                f"[Node2/MultiRetriever] mode={state['mode']} results={len(raw)} latency={round(latency)}ms"
-            ],
-        })
+        state.update(
+            {
+                "raw_results": raw,
+                "retrieval_latency": round(latency, 2),
+                "trace": state.get("trace", [])
+                + [
+                    f"[Node2/MultiRetriever] mode={state['mode']} results={len(raw)} latency={round(latency)}ms"
+                ],
+            }
+        )
         return state
 
 
@@ -328,21 +403,24 @@ class RankForgeNode:
     """
 
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-12-v2") -> None:
-        self.model_name    = model_name
+        self.model_name = model_name
         self._cross_encoder = None  # lazy-loaded
 
     async def run(self, state: AgentState) -> AgentState:
         import asyncio
-        start    = time.perf_counter()
-        raw      = state.get("raw_results", [])
-        query    = state.get("expanded_query") or state["query_text"]
+
+        start = time.perf_counter()
+        raw = state.get("raw_results", [])
+        query = state.get("expanded_query") or state["query_text"]
 
         if not raw:
-            state.update({
-                "reranked_results": [],
-                "dropped_count":    0,
-                "trace": state.get("trace", []) + ["[Node3/RankForge] no results to rerank"],
-            })
+            state.update(
+                {
+                    "reranked_results": [],
+                    "dropped_count": 0,
+                    "trace": state.get("trace", []) + ["[Node3/RankForge] no results to rerank"],
+                }
+            )
             return state
 
         # Attempt cross-encoder reranking
@@ -358,30 +436,34 @@ class RankForgeNode:
         observe_lab.record_rerank_delta(state.get("corpus_id", "unknown"), avg_shift)
 
         # Apply MMR to add diversity
-        final    = self._apply_mmr(query, reranked, top_k=min(state["top_k"], len(reranked)))
-        dropped  = len(raw) - len(final)
-        latency  = (time.perf_counter() - start) * 1000
+        final = self._apply_mmr(query, reranked, top_k=min(state["top_k"], len(reranked)))
+        dropped = len(raw) - len(final)
+        latency = (time.perf_counter() - start) * 1000
         observe_lab.record_agent_node("rank_forge", latency)
 
-        state.update({
-            "reranked_results": final,
-            "dropped_count":    dropped,
-            "rerank_avg_shift": round(avg_shift, 2),
-            "trace": state.get("trace", []) + [
-                f"[Node3/RankForge] reranked={len(final)} dropped={dropped} "
-                f"avg_shift={round(avg_shift, 2)} latency={round(latency)}ms"
-            ],
-        })
+        state.update(
+            {
+                "reranked_results": final,
+                "dropped_count": dropped,
+                "rerank_avg_shift": round(avg_shift, 2),
+                "trace": state.get("trace", [])
+                + [
+                    f"[Node3/RankForge] reranked={len(final)} dropped={dropped} "
+                    f"avg_shift={round(avg_shift, 2)} latency={round(latency)}ms"
+                ],
+            }
+        )
         return state
 
     def _rerank_sync(self, query: str, results: list[dict]) -> list[dict]:
         """Run cross-encoder reranking synchronously."""
         try:
             from sentence_transformers import CrossEncoder
+
             if self._cross_encoder is None:
                 self._cross_encoder = CrossEncoder(self.model_name)
 
-            pairs  = [(query, r["text"]) for r in results]
+            pairs = [(query, r["text"]) for r in results]
             scores = self._cross_encoder.predict(pairs)
 
             for i, result in enumerate(results):
@@ -393,7 +475,9 @@ class RankForgeNode:
             logger.debug("cross_encoder_unavailable_fallback", error=str(exc))
             return sorted(results, key=lambda x: x["score"], reverse=True)
 
-    def _apply_mmr(self, query: str, results: list[dict], top_k: int, lambda_: float = 0.7) -> list[dict]:
+    def _apply_mmr(
+        self, query: str, results: list[dict], top_k: int, lambda_: float = 0.7
+    ) -> list[dict]:
         """
         Maximal Marginal Relevance for result diversity.
         λ=0.7 means 70% weight on relevance, 30% on novelty.
@@ -411,14 +495,14 @@ class RankForgeNode:
             else:
                 # MMR: balance relevance and diversity
                 def mmr_score(candidate: dict) -> float:
-                    rel    = candidate.get("rerank_score", candidate["score"])
+                    rel = candidate.get("rerank_score", candidate["score"])
                     # Approximate similarity via text overlap (no embeddings needed)
                     c_words = set(candidate["text"].lower().split())
                     max_sim = 0.0
                     for sel in selected:
-                        s_words  = set(sel["text"].lower().split())
-                        overlap  = len(c_words & s_words) / max(len(c_words | s_words), 1)
-                        max_sim  = max(max_sim, overlap)
+                        s_words = set(sel["text"].lower().split())
+                        overlap = len(c_words & s_words) / max(len(c_words | s_words), 1)
+                        max_sim = max(max_sim, overlap)
                     return lambda_ * rel - (1 - lambda_) * max_sim
 
                 best = max(remaining, key=mmr_score)
@@ -456,29 +540,32 @@ RULES:
 """
 
     async def run(self, state: AgentState) -> AgentState:
-        start   = time.perf_counter()
+        start = time.perf_counter()
         results = state.get("reranked_results") or state.get("raw_results", [])
-        query   = state["query_text"]
+        query = state["query_text"]
 
         if not results:
-            state.update({
-                "answer":           "No relevant documents found for this query.",
-                "synthesis_latency": 0.0,
-                "trace": state.get("trace", []) + ["[Node4/Synthesizer] no context available"],
-            })
+            state.update(
+                {
+                    "answer": "No relevant documents found for this query.",
+                    "synthesis_latency": 0.0,
+                    "trace": state.get("trace", []) + ["[Node4/Synthesizer] no context available"],
+                }
+            )
             return state
 
         answer = await self._synthesize(query, results)
         latency = (time.perf_counter() - start) * 1000
         observe_lab.record_agent_node("synthesizer", latency)
 
-        state.update({
-            "answer":            answer,
-            "synthesis_latency": round(latency, 2),
-            "trace": state.get("trace", []) + [
-                f"[Node4/Synthesizer] answer_length={len(answer)} latency={round(latency)}ms"
-            ],
-        })
+        state.update(
+            {
+                "answer": answer,
+                "synthesis_latency": round(latency, 2),
+                "trace": state.get("trace", [])
+                + [f"[Node4/Synthesizer] answer_length={len(answer)} latency={round(latency)}ms"],
+            }
+        )
         return state
 
     async def _synthesize(self, query: str, results: list[dict]) -> str:
@@ -499,19 +586,20 @@ Based solely on the above context, provide a comprehensive answer to the query."
 
         try:
             from anthropic import Anthropic
-            client   = Anthropic()
+
+            client = Anthropic()
             response = client.messages.create(
-                model    = "claude-3-5-haiku-20241022",
-                max_tokens = 1024,
-                system   = self.SYNTHESIS_SYSTEM,
-                messages = [{"role": "user", "content": prompt}],
+                model="claude-3-5-haiku-20241022",
+                max_tokens=1024,
+                system=self.SYNTHESIS_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
             )
             return response.content[0].text.strip()
 
         except Exception:
             # Extractive fallback: return top 3 chunk snippets
             snippets = [f"• {r['text'][:200]}..." for r in results[:3]]
-            return f"Based on retrieved documents:\n\n" + "\n\n".join(snippets)
+            return "Based on retrieved documents:\n\n" + "\n\n".join(snippets)
 
 
 class OutputFormatterNode:
@@ -525,19 +613,19 @@ class OutputFormatterNode:
     """
 
     async def run(self, state: AgentState) -> AgentState:
-        start   = time.perf_counter()
+        start = time.perf_counter()
         results = state.get("reranked_results") or state.get("raw_results", [])
-        answer  = state.get("answer", "")
+        answer = state.get("answer", "")
 
         # Build structured sources
         sources = [
             {
-                "rank":       r.get("rank", i + 1),
-                "chunk_id":   r.get("chunk_id", ""),
-                "text":       r.get("text", "")[:300],
-                "score":      round(r.get("rerank_score", r.get("score", 0.0)), 4),
+                "rank": r.get("rank", i + 1),
+                "chunk_id": r.get("chunk_id", ""),
+                "text": r.get("text", "")[:300],
+                "score": round(r.get("rerank_score", r.get("score", 0.0)), 4),
                 "source_doc": r.get("source_doc", ""),
-                "mode":       r.get("mode", "hybrid"),
+                "mode": r.get("mode", "hybrid"),
             }
             for i, r in enumerate(results[:10])
         ]
@@ -556,18 +644,21 @@ class OutputFormatterNode:
         )
         observe_lab.record_agent_node("output_formatter", (time.perf_counter() - start) * 1000)
 
-        state.update({
-            "sources":    sources,
-            "citations":  citations,
-            "confidence": confidence,
-            "model_confidence":   model_confidence,
-            "hallucination_risk": hallucination_risk,
-            "trace": state.get("trace", []) + [
-                f"[Node5/OutputFormatter] sources={len(sources)} retrieval_conf={confidence:.2f} "
-                f"model_conf={model_confidence if model_confidence is None else round(model_confidence, 2)} "
-                f"hallucination_risk={hallucination_risk}"
-            ],
-        })
+        state.update(
+            {
+                "sources": sources,
+                "citations": citations,
+                "confidence": confidence,
+                "model_confidence": model_confidence,
+                "hallucination_risk": hallucination_risk,
+                "trace": state.get("trace", [])
+                + [
+                    f"[Node5/OutputFormatter] sources={len(sources)} retrieval_conf={confidence:.2f} "
+                    f"model_conf={model_confidence if model_confidence is None else round(model_confidence, 2)} "
+                    f"hallucination_risk={hallucination_risk}"
+                ],
+            }
+        )
         return state
 
     def _compute_confidence(self, sources: list[dict], answer: str) -> float:
@@ -590,22 +681,20 @@ class OutputFormatterNode:
         score_gap = max(top1 - top2, 0.0)
 
         relevance_bar = 0.5
-        doc_coverage = sum(1 for s in norm_scores[:10] if s >= relevance_bar) / min(len(norm_scores), 10)
+        doc_coverage = sum(1 for s in norm_scores[:10] if s >= relevance_bar) / min(
+            len(norm_scores), 10
+        )
 
         # reranker_top1 falls back to top1 if reranking didn't run (no separate signal)
         reranker_top1 = top1
 
-        confidence = (
-            0.40 * top1
-            + 0.25 * score_gap
-            + 0.20 * doc_coverage
-            + 0.15 * reranker_top1
-        )
+        confidence = 0.40 * top1 + 0.25 * score_gap + 0.20 * doc_coverage + 0.15 * reranker_top1
         return round(min(confidence, 1.0), 3)
 
     @staticmethod
     def _sigmoid(x: float) -> float:
         import math
+
         return 1 / (1 + math.exp(-x))
 
     @staticmethod
@@ -616,6 +705,7 @@ class OutputFormatterNode:
         Requested in the synthesis prompt but previously never captured.
         """
         import re
+
         match = re.search(r"confidence:\s*(high|medium|low)", answer, re.IGNORECASE)
         if not match:
             return None
@@ -623,6 +713,7 @@ class OutputFormatterNode:
 
 
 # ─── RetrievalAgent Orchestrator ─────────────────────────────────────────────
+
 
 class RetrievalAgent:
     """
@@ -677,34 +768,34 @@ class RetrievalAgent:
 
         # Initialize state
         state: AgentState = {
-            "query_text":      query.query_text,
-            "corpus_id":       query.corpus_id,
-            "mode":            query.mode,
-            "top_k":           query.top_k,
-            "query_type":      "factoid",
-            "expanded_query":  query.query_text,
+            "query_text": query.query_text,
+            "corpus_id": query.corpus_id,
+            "mode": query.mode,
+            "top_k": query.top_k,
+            "query_type": "factoid",
+            "expanded_query": query.query_text,
             "detected_domain": "general",
-            "sub_queries":     [],
-            "raw_results":     [],
+            "sub_queries": [],
+            "raw_results": [],
             "retrieval_latency": 0.0,
             "reranked_results": [],
-            "dropped_count":   0,
+            "dropped_count": 0,
             "rerank_avg_shift": 0.0,
-            "answer":          "",
+            "answer": "",
             "synthesis_latency": 0.0,
-            "sources":         [],
-            "confidence":      0.0,
-            "model_confidence":   None,
+            "sources": [],
+            "confidence": 0.0,
+            "model_confidence": None,
             "hallucination_risk": False,
-            "citations":       [],
-            "trace":           [f"[Agent] started query_id={query.query_id}"],
+            "citations": [],
+            "trace": [f"[Agent] started query_id={query.query_id}"],
         }
 
         logger.info(
             "agent_pipeline_start",
-            query_id   = query.query_id,
-            query_text = query.query_text[:80],
-            corpus_id  = query.corpus_id,
+            query_id=query.query_id,
+            query_text=query.query_text[:80],
+            corpus_id=query.corpus_id,
         )
 
         error = None
@@ -720,25 +811,25 @@ class RetrievalAgent:
 
         logger.info(
             "agent_pipeline_complete",
-            query_id     = query.query_id,
-            sources      = len(state.get("sources", [])),
-            confidence   = state.get("confidence", 0.0),
-            latency_ms   = total_latency,
+            query_id=query.query_id,
+            sources=len(state.get("sources", [])),
+            confidence=state.get("confidence", 0.0),
+            latency_ms=total_latency,
         )
 
         return AgentResponse(
-            query_id         = query.query_id,
-            query_text       = query.query_text,
-            answer           = state.get("answer", ""),
-            sources          = state.get("sources", []),
-            confidence       = state.get("confidence", 0.0),
-            model_confidence   = state.get("model_confidence"),
-            hallucination_risk = state.get("hallucination_risk", False),
-            citations        = state.get("citations", []),
-            query_type       = state.get("query_type", "factoid"),
-            detected_domain  = state.get("detected_domain", "general"),
-            expanded_query   = state.get("expanded_query", query.query_text),
-            total_latency_ms = total_latency,
-            trace            = state.get("trace", []),
-            error            = error,
+            query_id=query.query_id,
+            query_text=query.query_text,
+            answer=state.get("answer", ""),
+            sources=state.get("sources", []),
+            confidence=state.get("confidence", 0.0),
+            model_confidence=state.get("model_confidence"),
+            hallucination_risk=state.get("hallucination_risk", False),
+            citations=state.get("citations", []),
+            query_type=state.get("query_type", "factoid"),
+            detected_domain=state.get("detected_domain", "general"),
+            expanded_query=state.get("expanded_query", query.query_text),
+            total_latency_ms=total_latency,
+            trace=state.get("trace", []),
+            error=error,
         )

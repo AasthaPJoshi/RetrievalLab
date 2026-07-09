@@ -43,12 +43,14 @@ logger = structlog.get_logger(__name__)
 # This avoids import-time failures if fitz/pdfplumber isn't installed yet.
 try:
     import fitz  # PyMuPDF
+
     FITZ_AVAILABLE = True
 except ImportError:
     FITZ_AVAILABLE = False
 
 try:
     import pdfplumber
+
     PDFPLUMBER_AVAILABLE = True
 except ImportError:
     PDFPLUMBER_AVAILABLE = False
@@ -88,14 +90,13 @@ class PDFLoader(BaseLoader):
         max_file_size_bytes: int | None = None,
     ) -> None:
         super().__init__(max_file_size_bytes=max_file_size_bytes)
-        self.extract_tables   = extract_tables
-        self.extract_images   = extract_images
-        self.min_text_length  = min_text_length
+        self.extract_tables = extract_tables
+        self.extract_images = extract_images
+        self.min_text_length = min_text_length
 
         if not FITZ_AVAILABLE:
             raise ImportError(
-                "PyMuPDF is required for PDFLoader. "
-                "Install with: pip install pymupdf"
+                "PyMuPDF is required for PDFLoader. Install with: pip install pymupdf"
             )
 
     def supports(self, path: Path) -> bool:
@@ -193,7 +194,7 @@ class PDFLoader(BaseLoader):
             )
 
         metadata["scanned_page_count"] = scanned_pages
-        metadata["text_page_count"]    = page_count - scanned_pages
+        metadata["text_page_count"] = page_count - scanned_pages
 
         # ── Step 6: Extract tables (pdfplumber fallback) ───────────────────
         if self.extract_tables and PDFPLUMBER_AVAILABLE:

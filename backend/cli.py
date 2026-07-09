@@ -26,12 +26,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 import typer
 from rich import print as rprint
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 console = Console()
@@ -55,17 +53,28 @@ app.add_typer(corpus_app, name="corpus")
 
 # ─── corpus ingest ────────────────────────────────────────────────────────────
 
+
 @corpus_app.command("ingest")
 def ingest_corpus(
-    source:          str            = typer.Option(...,     "--source",     "-s", help="Path to documents directory or single file"),
-    corpus_id:       str            = typer.Option(...,     "--corpus-id",  "-c", help="Unique corpus identifier (snake_case)"),
-    domain:          str            = typer.Option("general", "--domain",   "-d", help="Industry domain: healthcare, finance, legal, ..."),
-    strategy:        str            = typer.Option("recursive", "--strategy", "-S", help="Chunking strategy name"),
-    chunk_size:      int            = typer.Option(512,     "--chunk-size",       help="Target chunk size in tokens"),
-    chunk_overlap:   int            = typer.Option(64,      "--overlap",          help="Overlap between chunks in tokens"),
-    embed_model:     str            = typer.Option("text-embedding-3-small", "--embed-model", help="Embedding model"),
-    force:           bool           = typer.Option(False,   "--force",      "-f", help="Re-ingest even if fingerprint unchanged"),
-    name:            Optional[str]  = typer.Option(None,    "--name",       "-n", help="Human-readable corpus name"),
+    source: str = typer.Option(
+        ..., "--source", "-s", help="Path to documents directory or single file"
+    ),
+    corpus_id: str = typer.Option(
+        ..., "--corpus-id", "-c", help="Unique corpus identifier (snake_case)"
+    ),
+    domain: str = typer.Option(
+        "general", "--domain", "-d", help="Industry domain: healthcare, finance, legal, ..."
+    ),
+    strategy: str = typer.Option("recursive", "--strategy", "-S", help="Chunking strategy name"),
+    chunk_size: int = typer.Option(512, "--chunk-size", help="Target chunk size in tokens"),
+    chunk_overlap: int = typer.Option(64, "--overlap", help="Overlap between chunks in tokens"),
+    embed_model: str = typer.Option(
+        "text-embedding-3-small", "--embed-model", help="Embedding model"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Re-ingest even if fingerprint unchanged"
+    ),
+    name: str | None = typer.Option(None, "--name", "-n", help="Human-readable corpus name"),
 ) -> None:
     """
     Ingest documents from a local path into a named corpus.
@@ -81,21 +90,21 @@ def ingest_corpus(
         # Use semantic chunking
         retrievallab corpus ingest --source data/ --corpus-id mydata --strategy semantic
     """
-    from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.services.corpus_forge import IngestRequest
 
     request = IngestRequest(
-        corpus_id       = corpus_id,
-        source          = source,
-        name            = name or "",
-        domain          = domain,
-        strategy        = strategy,
-        chunk_size      = chunk_size,
-        chunk_overlap   = chunk_overlap,
-        embedding_model = embed_model,
-        force_reingest  = force,
+        corpus_id=corpus_id,
+        source=source,
+        name=name or "",
+        domain=domain,
+        strategy=strategy,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        embedding_model=embed_model,
+        force_reingest=force,
     )
 
-    rprint(f"\n[bold blue]RetrievalLab[/bold blue] — Corpus Ingestion")
+    rprint("\n[bold blue]RetrievalLab[/bold blue] — Corpus Ingestion")
     rprint(f"  Corpus ID : [cyan]{corpus_id}[/cyan]")
     rprint(f"  Source    : [yellow]{source}[/yellow]")
     rprint(f"  Domain    : {domain}")
@@ -110,15 +119,15 @@ def ingest_corpus(
         return
 
     if result.success:
-        rprint(f"\n[bold green]✓ Ingestion Complete[/bold green]")
+        rprint("\n[bold green]✓ Ingestion Complete[/bold green]")
         t = Table(show_header=True, header_style="bold blue")
         t.add_column("Metric")
         t.add_column("Value", justify="right")
-        t.add_row("Documents loaded",  str(result.doc_count))
-        t.add_row("Chunks created",    str(result.chunk_count))
-        t.add_row("Total tokens",      f"{result.total_tokens:,}")
-        t.add_row("Duration",          f"{result.duration_s:.1f}s")
-        t.add_row("Failures",          str(len(result.failures)))
+        t.add_row("Documents loaded", str(result.doc_count))
+        t.add_row("Chunks created", str(result.chunk_count))
+        t.add_row("Total tokens", f"{result.total_tokens:,}")
+        t.add_row("Duration", f"{result.duration_s:.1f}s")
+        t.add_row("Failures", str(len(result.failures)))
         console.print(t)
 
         if result.failures:
@@ -128,16 +137,16 @@ def ingest_corpus(
             if len(result.failures) > 5:
                 rprint(f"  ... and {len(result.failures) - 5} more")
     else:
-        rprint(f"\n[bold red]✗ Ingestion Failed[/bold red]")
+        rprint("\n[bold red]✗ Ingestion Failed[/bold red]")
         for src, err in result.failures:
             rprint(f"  [red]{src}[/red]: {err}")
         raise typer.Exit(code=1)
 
 
-async def _run_ingest(request) -> "IngestResult":
+async def _run_ingest(request) -> IngestResult:
     """Run ingestion in async context with DB session."""
     from backend.db.base import AsyncSessionLocal
-    from backend.services.corpus_forge import CorpusForge, IngestResult
+    from backend.services.corpus_forge import CorpusForge
 
     async with AsyncSessionLocal() as db:
         forge = CorpusForge(db=db)
@@ -146,10 +155,11 @@ async def _run_ingest(request) -> "IngestResult":
 
 # ─── corpus list ─────────────────────────────────────────────────────────────
 
+
 @corpus_app.command("list")
 def list_corpora(
-    domain: Optional[str] = typer.Option(None, "--domain", "-d", help="Filter by domain"),
-    status: Optional[str] = typer.Option(None, "--status",       help="Filter by status"),
+    domain: str | None = typer.Option(None, "--domain", "-d", help="Filter by domain"),
+    status: str | None = typer.Option(None, "--status", help="Filter by status"),
 ) -> None:
     """List all corpora in the database."""
 
@@ -160,15 +170,17 @@ def list_corpora(
         return
 
     t = Table(show_header=True, header_style="bold blue", title="RetrievalLab Corpora")
-    t.add_column("Corpus ID",   style="cyan", no_wrap=True)
-    t.add_column("Domain",      style="magenta")
-    t.add_column("Status",      style="green")
-    t.add_column("Docs",        justify="right")
-    t.add_column("Chunks",      justify="right")
+    t.add_column("Corpus ID", style="cyan", no_wrap=True)
+    t.add_column("Domain", style="magenta")
+    t.add_column("Status", style="green")
+    t.add_column("Docs", justify="right")
+    t.add_column("Chunks", justify="right")
     t.add_column("Strategy")
 
     for c in corpora:
-        status_color = {"READY": "green", "FAILED": "red", "INGESTING": "yellow"}.get(c["status"], "white")
+        status_color = {"READY": "green", "FAILED": "red", "INGESTING": "yellow"}.get(
+            c["status"], "white"
+        )
         t.add_row(
             c["corpus_id"],
             c["domain"],
@@ -182,8 +194,9 @@ def list_corpora(
 
 
 async def _list_corpora_async(domain=None, status=None) -> list[dict]:
-    from backend.db.base import AsyncSessionLocal
     from sqlalchemy import select
+
+    from backend.db.base import AsyncSessionLocal
     from backend.models.corpus import Corpus, CorpusDomain, CorpusStatus
 
     async with AsyncSessionLocal() as db:
@@ -196,11 +209,11 @@ async def _list_corpora_async(domain=None, status=None) -> list[dict]:
         corpora = result.scalars().all()
         return [
             {
-                "corpus_id":     c.corpus_id,
-                "domain":        c.domain.value,
-                "status":        c.status.value,
-                "doc_count":     c.doc_count,
-                "chunk_count":   c.chunk_count,
+                "corpus_id": c.corpus_id,
+                "domain": c.domain.value,
+                "status": c.status.value,
+                "doc_count": c.doc_count,
+                "chunk_count": c.chunk_count,
                 "chunk_strategy": c.chunk_strategy.value,
             }
             for c in corpora
@@ -208,6 +221,7 @@ async def _list_corpora_async(domain=None, status=None) -> list[dict]:
 
 
 # ─── corpus status ────────────────────────────────────────────────────────────
+
 
 @corpus_app.command("status")
 def corpus_status(
@@ -233,8 +247,9 @@ def corpus_status(
 
 
 async def _get_corpus_async(corpus_id: str) -> dict | None:
-    from backend.db.base import AsyncSessionLocal
     from sqlalchemy import select
+
+    from backend.db.base import AsyncSessionLocal
     from backend.models.corpus import Corpus
 
     async with AsyncSessionLocal() as db:
@@ -243,13 +258,13 @@ async def _get_corpus_async(corpus_id: str) -> dict | None:
         if c is None:
             return None
         return {
-            "corpus_id":     c.corpus_id,
-            "name":          c.name,
-            "domain":        c.domain.value,
-            "status":        c.status.value,
-            "doc_count":     c.doc_count,
-            "chunk_count":   c.chunk_count,
-            "total_tokens":  c.total_tokens,
+            "corpus_id": c.corpus_id,
+            "name": c.name,
+            "domain": c.domain.value,
+            "status": c.status.value,
+            "doc_count": c.doc_count,
+            "chunk_count": c.chunk_count,
+            "total_tokens": c.total_tokens,
             "chunk_strategy": c.chunk_strategy.value,
             "error_message": c.error_message,
         }

@@ -36,15 +36,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.base import get_db
 from backend.services.embed_hub import EmbedHub
 from backend.services.index_registry import IndexRegistry
-from backend.services.retriever_core import RetrieverCore, RetrievalRequest
+from backend.services.retriever_core import RetrievalRequest, RetrieverCore
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 # Module-level singletons (shared across requests — expensive to reinitialize)
-_embed_hub:       EmbedHub | None       = None
-_index_registry:  IndexRegistry | None  = None
-_retriever_core:  RetrieverCore | None  = None
+_embed_hub: EmbedHub | None = None
+_index_registry: IndexRegistry | None = None
+_retriever_core: RetrieverCore | None = None
 
 
 def _get_retriever() -> RetrieverCore:
@@ -53,13 +53,14 @@ def _get_retriever() -> RetrieverCore:
 
     if _retriever_core is None:
         from config.settings import get_settings
+
         s = get_settings()
-        _embed_hub      = EmbedHub(model_name=s.llm.default_embed_model)
+        _embed_hub = EmbedHub(model_name=s.llm.default_embed_model)
         _index_registry = IndexRegistry()
         _retriever_core = RetrieverCore(
-            index_registry = _index_registry,
-            embed_hub      = _embed_hub,
-            default_mode   = s.retrieval.retriever,
+            index_registry=_index_registry,
+            embed_hub=_embed_hub,
+            default_mode=s.retrieval.retriever,
         )
 
     return _retriever_core
@@ -67,65 +68,67 @@ def _get_retriever() -> RetrieverCore:
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
+
 class RetrieveRequest(BaseModel):
     """Request body for POST /retrieve"""
 
-    query:     str   = Field(
+    query: str = Field(
         ...,
         min_length=1,
         max_length=2048,
         description="Natural language query string",
         examples=["What are the symptoms of type 2 diabetes?"],
     )
-    corpus_id: str   = Field(
+    corpus_id: str = Field(
         ...,
         description="Corpus to search (must be in READY status)",
         examples=["healthcare_pubmed_v1"],
     )
-    mode:      str   = Field(
+    mode: str = Field(
         default="hybrid",
         description="Retrieval mode: sparse (BM25) | dense (vector) | hybrid (RRF)",
     )
-    top_k:     int   = Field(default=10, ge=1, le=100, description="Number of results")
-    rrf_k:     int   = Field(default=60, ge=1, le=200, description="RRF damping constant")
+    top_k: int = Field(default=10, ge=1, le=100, description="Number of results")
+    rrf_k: int = Field(default=60, ge=1, le=200, description="RRF damping constant")
 
 
 class RetrieveResultItem(BaseModel):
     """Single item in a retrieval response."""
 
-    chunk_id:       str
-    text:           str
-    score:          float
-    rank:           int
-    source_doc:     str
+    chunk_id: str
+    text: str
+    score: float
+    rank: int
+    source_doc: str
     retrieval_mode: str
-    sparse_rank:    int | None
-    dense_rank:     int | None
-    latency_ms:     float
-    metadata:       dict[str, Any]
+    sparse_rank: int | None
+    dense_rank: int | None
+    latency_ms: float
+    metadata: dict[str, Any]
 
 
 class RetrieveResponse(BaseModel):
     """Full response from POST /retrieve"""
 
-    query:          str
-    corpus_id:      str
-    mode:           str
-    total_results:  int
-    latency_ms:     float
-    results:        list[RetrieveResultItem]
+    query: str
+    corpus_id: str
+    mode: str
+    total_results: int
+    latency_ms: float
+    results: list[RetrieveResultItem]
 
 
 class BatchRetrieveRequest(BaseModel):
     """Request body for POST /retrieve/batch"""
 
-    queries:   list[str] = Field(..., min_length=1, max_length=50)
+    queries: list[str] = Field(..., min_length=1, max_length=50)
     corpus_id: str
-    mode:      str  = "hybrid"
-    top_k:     int  = Field(default=10, ge=1, le=100)
+    mode: str = "hybrid"
+    top_k: int = Field(default=10, ge=1, le=100)
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/",
@@ -139,7 +142,7 @@ class BatchRetrieveRequest(BaseModel):
 )
 async def retrieve(
     body: RetrieveRequest,
-    db:   AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> RetrieveResponse:
     """
     Retrieve top-K relevant chunks for a query.
@@ -164,11 +167,11 @@ async def retrieve(
     await _ensure_index_built(body.corpus_id, body.mode, retriever, db)
 
     request = RetrievalRequest(
-        query     = body.query,
-        corpus_id = body.corpus_id,
-        mode      = body.mode,
-        top_k     = body.top_k,
-        rrf_k     = body.rrf_k,
+        query=body.query,
+        corpus_id=body.corpus_id,
+        mode=body.mode,
+        top_k=body.top_k,
+        rrf_k=body.rrf_k,
     )
 
     try:
@@ -186,23 +189,23 @@ async def retrieve(
     latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
     return RetrieveResponse(
-        query         = body.query,
-        corpus_id     = body.corpus_id,
-        mode          = body.mode,
-        total_results = len(results),
-        latency_ms    = latency_ms,
-        results       = [
+        query=body.query,
+        corpus_id=body.corpus_id,
+        mode=body.mode,
+        total_results=len(results),
+        latency_ms=latency_ms,
+        results=[
             RetrieveResultItem(
-                chunk_id       = r.chunk_id,
-                text           = r.text,
-                score          = r.score,
-                rank           = r.rank,
-                source_doc     = r.source_doc,
-                retrieval_mode = r.retrieval_mode,
-                sparse_rank    = r.sparse_rank,
-                dense_rank     = r.dense_rank,
-                latency_ms     = r.latency_ms,
-                metadata       = r.metadata,
+                chunk_id=r.chunk_id,
+                text=r.text,
+                score=r.score,
+                rank=r.rank,
+                source_doc=r.source_doc,
+                retrieval_mode=r.retrieval_mode,
+                sparse_rank=r.sparse_rank,
+                dense_rank=r.dense_rank,
+                latency_ms=r.latency_ms,
+                metadata=r.metadata,
             )
             for r in results
         ],
@@ -220,7 +223,7 @@ async def retrieve(
 )
 async def batch_retrieve(
     body: BatchRetrieveRequest,
-    db:   AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> list[RetrieveResponse]:
     """Retrieve documents for a batch of queries against the same corpus."""
     import asyncio
@@ -231,21 +234,31 @@ async def batch_retrieve(
     async def _single(query: str) -> RetrieveResponse:
         t0 = time.perf_counter()
         request = RetrievalRequest(
-            query=query, corpus_id=body.corpus_id,
-            mode=body.mode, top_k=body.top_k,
+            query=query,
+            corpus_id=body.corpus_id,
+            mode=body.mode,
+            top_k=body.top_k,
         )
-        results    = await retriever.retrieve(request)
+        results = await retriever.retrieve(request)
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
         return RetrieveResponse(
-            query=query, corpus_id=body.corpus_id, mode=body.mode,
-            total_results=len(results), latency_ms=latency_ms,
+            query=query,
+            corpus_id=body.corpus_id,
+            mode=body.mode,
+            total_results=len(results),
+            latency_ms=latency_ms,
             results=[
                 RetrieveResultItem(
-                    chunk_id=r.chunk_id, text=r.text, score=r.score,
-                    rank=r.rank, source_doc=r.source_doc,
+                    chunk_id=r.chunk_id,
+                    text=r.text,
+                    score=r.score,
+                    rank=r.rank,
+                    source_doc=r.source_doc,
                     retrieval_mode=r.retrieval_mode,
-                    sparse_rank=r.sparse_rank, dense_rank=r.dense_rank,
-                    latency_ms=r.latency_ms, metadata=r.metadata,
+                    sparse_rank=r.sparse_rank,
+                    dense_rank=r.dense_rank,
+                    latency_ms=r.latency_ms,
+                    metadata=r.metadata,
                 )
                 for r in results
             ],
@@ -265,22 +278,22 @@ async def list_modes() -> dict[str, Any]:
     return {
         "modes": [
             {
-                "name":        "sparse",
+                "name": "sparse",
                 "description": "BM25 keyword matching via Elasticsearch",
-                "best_for":    "Exact term matches, legal/regulatory queries",
-                "speed":       "fastest",
+                "best_for": "Exact term matches, legal/regulatory queries",
+                "speed": "fastest",
             },
             {
-                "name":        "dense",
+                "name": "dense",
                 "description": "Vector similarity via FAISS (cosine)",
-                "best_for":    "Semantic queries, paraphrase retrieval",
-                "speed":       "fast",
+                "best_for": "Semantic queries, paraphrase retrieval",
+                "speed": "fast",
             },
             {
-                "name":        "hybrid",
+                "name": "hybrid",
                 "description": "Reciprocal Rank Fusion of sparse + dense",
-                "best_for":    "General purpose; best average performance",
-                "speed":       "moderate (2 parallel searches + fusion)",
+                "best_for": "General purpose; best average performance",
+                "speed": "moderate (2 parallel searches + fusion)",
             },
         ]
     }
@@ -288,11 +301,12 @@ async def list_modes() -> dict[str, Any]:
 
 # ─── Internal Helper ──────────────────────────────────────────────────────────
 
+
 async def _ensure_index_built(
     corpus_id: str,
-    mode:      str,
+    mode: str,
     retriever: RetrieverCore,
-    db:        AsyncSession,
+    db: AsyncSession,
 ) -> None:
     """
     Build the required index if not already in memory.
@@ -304,6 +318,7 @@ async def _ensure_index_built(
     fast even with large corpora.
     """
     from config.settings import get_settings
+
     s = get_settings()
 
     # Dense index
@@ -312,10 +327,10 @@ async def _ensure_index_built(
         if existing is None or not existing.is_built:
             try:
                 await retriever.index_registry.build_from_db(
-                    corpus_id   = corpus_id,
-                    backend     = "faiss",
-                    embed_model = s.llm.default_embed_model,
-                    db          = db,
+                    corpus_id=corpus_id,
+                    backend="faiss",
+                    embed_model=s.llm.default_embed_model,
+                    db=db,
                 )
             except ValueError as e:
                 logger.warning("dense_index_build_skipped", reason=str(e))

@@ -33,9 +33,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Generator
+from typing import Any
 
 import structlog
 
@@ -45,12 +46,13 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class RetrievalSpan:
     """Context manager span for timing retrieval operations."""
+
     corpus_id: str
-    mode:      str
+    mode: str
     start_time: float = 0.0
     latency_ms: float = 0.0
 
-    def __enter__(self) -> "RetrievalSpan":
+    def __enter__(self) -> RetrievalSpan:
         self.start_time = time.perf_counter()
         return self
 
@@ -89,11 +91,11 @@ class ObserveLab:
 
     def __init__(self) -> None:
         self._metrics_initialized = False
-        self._tracer              = None
-        self._prom_available      = False
+        self._tracer = None
+        self._prom_available = False
         self._counters: dict[str, Any] = {}
         self._histograms: dict[str, Any] = {}
-        self._gauges: dict[str, Any]    = {}
+        self._gauges: dict[str, Any] = {}
 
     def start(self, port: int = 9090) -> None:
         """Initialize Prometheus metrics server and OpenTelemetry tracer."""
@@ -104,8 +106,13 @@ class ObserveLab:
         """Set up Prometheus metrics."""
         try:
             from prometheus_client import (
-                Counter, Histogram, Gauge, start_http_server,
-                CollectorRegistry, CONTENT_TYPE_LATEST, generate_latest,
+                CONTENT_TYPE_LATEST,
+                CollectorRegistry,
+                Counter,
+                Gauge,
+                Histogram,
+                generate_latest,
+                start_http_server,
             )
 
             # Retrieval latency histogram (ms)
@@ -183,22 +190,25 @@ class ObserveLab:
             self._metrics_initialized = True
 
         except ImportError:
-            logger.warning("prometheus_client_not_installed", advice="pip install prometheus-client")
+            logger.warning(
+                "prometheus_client_not_installed", advice="pip install prometheus-client"
+            )
 
     def _init_otel(self) -> None:
         """Set up OpenTelemetry tracer."""
         try:
+            from config.settings import get_settings
             from opentelemetry import trace
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from config.settings import get_settings
 
-            s        = get_settings()
+            s = get_settings()
             provider = TracerProvider()
 
             try:
                 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-                exporter  = OTLPSpanExporter(endpoint=s.observability.otel_endpoint)
+
+                exporter = OTLPSpanExporter(endpoint=s.observability.otel_endpoint)
                 processor = BatchSpanProcessor(exporter)
                 provider.add_span_processor(processor)
             except Exception:
@@ -217,8 +227,8 @@ class ObserveLab:
     def trace_retrieval(
         self,
         corpus_id: str,
-        mode:      str,
-        strategy:  str = "hybrid",
+        mode: str,
+        strategy: str = "hybrid",
     ) -> Generator[RetrievalSpan, None, None]:
         """
         Context manager that times a retrieval operation and records metrics.
@@ -246,35 +256,33 @@ class ObserveLab:
 
     def record_retrieval_completed(
         self,
-        corpus_id:    str,
-        mode:         str,
+        corpus_id: str,
+        mode: str,
         result_count: int,
-        latency_ms:   float,
-        status:       str = "success",
+        latency_ms: float,
+        status: str = "success",
     ) -> None:
         """Record a completed retrieval call."""
         if not self._prom_available:
             return
-        self._counters["requests_total"].labels(
-            corpus_id=corpus_id, mode=mode, status=status
-        ).inc()
-        self._histograms["result_count"].labels(
-            corpus_id=corpus_id, mode=mode
-        ).observe(result_count)
+        self._counters["requests_total"].labels(corpus_id=corpus_id, mode=mode, status=status).inc()
+        self._histograms["result_count"].labels(corpus_id=corpus_id, mode=mode).observe(
+            result_count
+        )
 
     def record_eval_score(
         self,
-        corpus_id:    str,
+        corpus_id: str,
         retriever_mode: str,
-        ndcg_at_10:   float,
-        mrr:          float = 0.0,
+        ndcg_at_10: float,
+        mrr: float = 0.0,
     ) -> None:
         """Record evaluation metrics from an experiment run."""
         if not self._prom_available:
             return
-        self._gauges["ndcg_at_10"].labels(
-            corpus_id=corpus_id, retriever_mode=retriever_mode
-        ).set(ndcg_at_10)
+        self._gauges["ndcg_at_10"].labels(corpus_id=corpus_id, retriever_mode=retriever_mode).set(
+            ndcg_at_10
+        )
 
         logger.info(
             "eval_score_recorded",
@@ -310,7 +318,7 @@ class ObserveLab:
         return {
             "metrics_initialized": self._metrics_initialized,
             "prometheus_available": self._prom_available,
-            "otel_available":       self._tracer is not None,
+            "otel_available": self._tracer is not None,
         }
 
 

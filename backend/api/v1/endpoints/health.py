@@ -23,7 +23,6 @@
 from __future__ import annotations
 
 import time
-from typing import Any
 
 import structlog
 from fastapi import APIRouter
@@ -36,18 +35,20 @@ router = APIRouter()
 
 class ComponentHealth(BaseModel):
     """Health status of a single infrastructure component."""
-    name:       str
-    status:     str       # "healthy" | "degraded" | "unhealthy"
+
+    name: str
+    status: str  # "healthy" | "degraded" | "unhealthy"
     latency_ms: float | None = None
-    detail:     str | None   = None
+    detail: str | None = None
 
 
 class HealthResponse(BaseModel):
     """Full health check response."""
-    status:     str                      # "healthy" | "degraded" | "unhealthy"
-    version:    str
+
+    status: str  # "healthy" | "degraded" | "unhealthy"
+    version: str
     components: list[ComponentHealth]
-    uptime_s:   float
+    uptime_s: float
 
 
 # Track app start time for uptime reporting
@@ -79,10 +80,10 @@ async def health_check() -> JSONResponse:
         overall = "healthy"
 
     response = HealthResponse(
-        status     = overall,
-        version    = "0.1.0",
-        components = checks,
-        uptime_s   = round(time.time() - _START_TIME, 1),
+        status=overall,
+        version="0.1.0",
+        components=checks,
+        uptime_s=round(time.time() - _START_TIME, 1),
     )
 
     status_code = 200 if overall == "healthy" else 503
@@ -101,7 +102,7 @@ async def readiness() -> JSONResponse:
     Readiness probe — checks only critical components (DB + cache).
     Returns 200 if app is ready to serve traffic.
     """
-    db_check    = await _check_database()
+    db_check = await _check_database()
     redis_check = await _check_redis()
 
     ready = db_check.status == "healthy" and redis_check.status == "healthy"
@@ -115,9 +116,11 @@ async def readiness() -> JSONResponse:
 
 # ─── Component Checkers ───────────────────────────────────────────────────────
 
+
 async def _run_all_checks() -> list[ComponentHealth]:
     """Run all component health checks concurrently."""
     import asyncio
+
     results = await asyncio.gather(
         _check_database(),
         _check_redis(),
@@ -133,6 +136,7 @@ async def _check_database() -> ComponentHealth:
     t0 = time.perf_counter()
     try:
         from backend.db.base import check_db_connection
+
         ok = await check_db_connection()
         latency = round((time.perf_counter() - t0) * 1000, 2)
         if ok:
@@ -158,6 +162,7 @@ async def _check_redis() -> ComponentHealth:
     try:
         import redis.asyncio as aioredis
         from config.settings import get_settings
+
         settings = get_settings()
         client = aioredis.from_url(settings.redis.url)
         await client.ping()
@@ -174,11 +179,10 @@ async def _check_minio() -> ComponentHealth:
     try:
         import httpx
         from config.settings import get_settings
+
         settings = get_settings()
         async with httpx.AsyncClient(timeout=3.0) as client:
-            response = await client.get(
-                f"http://{settings.minio.endpoint}/minio/health/live"
-            )
+            response = await client.get(f"http://{settings.minio.endpoint}/minio/health/live")
         latency = round((time.perf_counter() - t0) * 1000, 2)
         status = "healthy" if response.status_code == 200 else "degraded"
         return ComponentHealth(name="minio", status=status, latency_ms=latency)
@@ -192,6 +196,7 @@ async def _check_chromadb() -> ComponentHealth:
     try:
         import httpx
         from config.settings import get_settings
+
         settings = get_settings()
         async with httpx.AsyncClient(timeout=3.0) as client:
             response = await client.get(f"{settings.chroma.url}/api/v1/heartbeat")

@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import structlog
 
@@ -54,17 +53,18 @@ logger = structlog.get_logger(__name__)
 
 # ─── Result Data Classes ──────────────────────────────────────────────────────
 
+
 @dataclass
 class RagasQuestionResult:
     """Ragas metrics for a single question."""
 
-    question:          str
-    answer:            str
+    question: str
+    answer: str
     context_precision: float = 0.0
-    context_recall:    float = 0.0
-    faithfulness:      float = 0.0
-    answer_relevance:  float = 0.0
-    error:             str | None = None
+    context_recall: float = 0.0
+    faithfulness: float = 0.0
+    answer_relevance: float = 0.0
+    error: str | None = None
 
 
 @dataclass
@@ -76,15 +76,15 @@ class RagasResult:
     None values indicate the metric could not be computed (e.g., no API key).
     """
 
-    context_precision: float | None    = None
-    context_recall:    float | None    = None
-    faithfulness:      float | None    = None
-    answer_relevance:  float | None    = None
-    question_results:  list[RagasQuestionResult] = field(default_factory=list)
-    question_count:    int             = 0
-    duration_s:        float           = 0.0
-    model_used:        str             = ""
-    error:             str | None      = None
+    context_precision: float | None = None
+    context_recall: float | None = None
+    faithfulness: float | None = None
+    answer_relevance: float | None = None
+    question_results: list[RagasQuestionResult] = field(default_factory=list)
+    question_count: int = 0
+    duration_s: float = 0.0
+    model_used: str = ""
+    error: str | None = None
 
     def to_dict(self) -> dict[str, float]:
         """Return scalar metrics as flat dict (for MLflow logging)."""
@@ -98,6 +98,7 @@ class RagasResult:
 
 
 # ─── RagasEvaluator ──────────────────────────────────────────────────────────
+
 
 class RagasEvaluator:
     """
@@ -131,19 +132,19 @@ class RagasEvaluator:
 
     def __init__(
         self,
-        model:      str = "gpt-4o-mini",
-        metrics:    list[str] | None = None,
+        model: str = "gpt-4o-mini",
+        metrics: list[str] | None = None,
         use_openai: bool | None = None,
     ) -> None:
-        self.model      = model
-        self.metrics    = metrics or self.DEFAULT_METRICS
+        self.model = model
+        self.metrics = metrics or self.DEFAULT_METRICS
         self.use_openai = use_openai  # None = auto-detect from API keys
 
     async def evaluate(
         self,
-        questions:    list[str],
-        answers:      list[str],
-        contexts:     list[list[str]],
+        questions: list[str],
+        answers: list[str],
+        contexts: list[list[str]],
         ground_truths: list[str] | None = None,
     ) -> RagasResult:
         """
@@ -177,9 +178,9 @@ class RagasEvaluator:
 
         try:
             result = await self._run_ragas(questions, answers, contexts, ground_truths)
-            result.duration_s    = time.perf_counter() - start
+            result.duration_s = time.perf_counter() - start
             result.question_count = len(questions)
-            result.model_used    = self.model
+            result.model_used = self.model
 
             logger.info(
                 "ragas_eval_complete",
@@ -199,9 +200,9 @@ class RagasEvaluator:
 
     async def _run_ragas(
         self,
-        questions:    list[str],
-        answers:      list[str],
-        contexts:     list[list[str]],
+        questions: list[str],
+        answers: list[str],
+        contexts: list[list[str]],
         ground_truths: list[str] | None,
     ) -> RagasResult:
         """
@@ -211,26 +212,25 @@ class RagasEvaluator:
         and parses scores into RagasResult.
         """
         try:
-            from datasets import Dataset as HFDataset
             import ragas
+            from datasets import Dataset as HFDataset
             from ragas import evaluate as ragas_evaluate
             from ragas.metrics import (
+                answer_relevance,
                 context_precision,
                 context_recall,
                 faithfulness,
-                answer_relevance,
             )
         except ImportError as e:
             raise ImportError(
-                f"Ragas dependencies missing: {e}. "
-                "Install with: pip install ragas datasets"
+                f"Ragas dependencies missing: {e}. Install with: pip install ragas datasets"
             )
 
         # Build HuggingFace Dataset for Ragas
         data_dict: dict[str, list] = {
-            "question":  questions,
-            "answer":    answers,
-            "contexts":  contexts,
+            "question": questions,
+            "answer": answers,
+            "contexts": contexts,
         }
         if ground_truths:
             data_dict["ground_truth"] = ground_truths
@@ -240,9 +240,9 @@ class RagasEvaluator:
         # Select metrics based on config
         metric_map = {
             "context_precision": context_precision,
-            "context_recall":    context_recall,
-            "faithfulness":      faithfulness,
-            "answer_relevance":  answer_relevance,
+            "context_recall": context_recall,
+            "faithfulness": faithfulness,
+            "answer_relevance": answer_relevance,
         }
         # context_recall requires ground_truth
         active_metrics = []
@@ -275,32 +275,42 @@ class RagasEvaluator:
         question_results = []
         for i, q in enumerate(questions):
             qr = RagasQuestionResult(
-                question          = q,
-                answer            = answers[i],
-                context_precision = float(scores_df.get("context_precision", [0])[i]) if "context_precision" in scores_df else 0.0,
-                context_recall    = float(scores_df.get("context_recall",    [0])[i]) if "context_recall"    in scores_df else 0.0,
-                faithfulness      = float(scores_df.get("faithfulness",       [0])[i]) if "faithfulness"       in scores_df else 0.0,
-                answer_relevance  = float(scores_df.get("answer_relevance",  [0])[i]) if "answer_relevance"  in scores_df else 0.0,
+                question=q,
+                answer=answers[i],
+                context_precision=float(scores_df.get("context_precision", [0])[i])
+                if "context_precision" in scores_df
+                else 0.0,
+                context_recall=float(scores_df.get("context_recall", [0])[i])
+                if "context_recall" in scores_df
+                else 0.0,
+                faithfulness=float(scores_df.get("faithfulness", [0])[i])
+                if "faithfulness" in scores_df
+                else 0.0,
+                answer_relevance=float(scores_df.get("answer_relevance", [0])[i])
+                if "answer_relevance" in scores_df
+                else 0.0,
             )
             question_results.append(qr)
 
         return RagasResult(
-            context_precision = _safe_mean("context_precision"),
-            context_recall    = _safe_mean("context_recall"),
-            faithfulness      = _safe_mean("faithfulness"),
-            answer_relevance  = _safe_mean("answer_relevance"),
-            question_results  = question_results,
+            context_precision=_safe_mean("context_precision"),
+            context_recall=_safe_mean("context_recall"),
+            faithfulness=_safe_mean("faithfulness"),
+            answer_relevance=_safe_mean("answer_relevance"),
+            question_results=question_results,
         )
 
     def _get_ragas_llm(self):
         """Return a Ragas-compatible LLM instance based on available API keys."""
         from config.settings import get_settings
+
         s = get_settings()
 
         # Try Anthropic first if model name suggests it
         if "claude" in self.model.lower() and s.llm.anthropic_api_key:
             try:
                 from langchain_anthropic import ChatAnthropic
+
                 return ChatAnthropic(
                     model=self.model,
                     api_key=s.llm.anthropic_api_key.get_secret_value(),
@@ -312,6 +322,7 @@ class RagasEvaluator:
         if s.llm.openai_api_key:
             try:
                 from langchain_openai import ChatOpenAI
+
                 return ChatOpenAI(
                     model="gpt-4o-mini",
                     api_key=s.llm.openai_api_key.get_secret_value(),
@@ -319,6 +330,4 @@ class RagasEvaluator:
             except ImportError:
                 pass
 
-        raise RuntimeError(
-            "No LLM API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env"
-        )
+        raise RuntimeError("No LLM API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env")

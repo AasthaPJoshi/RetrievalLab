@@ -34,24 +34,25 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.corpus import (
-    Corpus,
     Chunk,
+    ChunkStrategy,
+    Corpus,
     CorpusDomain,
     CorpusStatus,
-    ChunkStrategy,
 )
-from corpus.loaders.loader_registry import LoaderRegistry, default_registry
-from corpus.chunkers.chunk_engine import ChunkEngine, ChunkConfig, default_chunk_engine
+from corpus.chunkers.chunk_engine import ChunkConfig, ChunkEngine, default_chunk_engine
 from corpus.loaders.base_loader import ParsedDocument
+from corpus.loaders.loader_registry import LoaderRegistry, default_registry
 
 logger = structlog.get_logger(__name__)
 
 
 # ─── Request / Response Models ────────────────────────────────────────────────
+
 
 @dataclass
 class IngestRequest:
@@ -70,16 +71,17 @@ class IngestRequest:
         force_reingest: If True, re-ingest even if fingerprint matches existing corpus.
         extra_config:   Strategy-specific extra parameters.
     """
-    corpus_id:       str
-    source:          str
-    name:            str             = ""
-    domain:          str             = "general"
-    strategy:        str             = "recursive"
-    chunk_size:      int             = 512
-    chunk_overlap:   int             = 64
-    embedding_model: str             = "text-embedding-3-small"
-    force_reingest:  bool            = False
-    extra_config:    dict[str, Any]  = field(default_factory=dict)
+
+    corpus_id: str
+    source: str
+    name: str = ""
+    domain: str = "general"
+    strategy: str = "recursive"
+    chunk_size: int = 512
+    chunk_overlap: int = 64
+    embedding_model: str = "text-embedding-3-small"
+    force_reingest: bool = False
+    extra_config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -97,14 +99,15 @@ class IngestResult:
         failures:      List of (source, error) for documents that failed.
         skipped:       True if ingestion was skipped (same fingerprint, no force).
     """
-    corpus_id:    str
-    status:       str
-    doc_count:    int             = 0
-    chunk_count:  int             = 0
-    total_tokens: int             = 0
-    duration_s:   float           = 0.0
-    failures:     list[tuple[str, str]] = field(default_factory=list)
-    skipped:      bool            = False
+
+    corpus_id: str
+    status: str
+    doc_count: int = 0
+    chunk_count: int = 0
+    total_tokens: int = 0
+    duration_s: float = 0.0
+    failures: list[tuple[str, str]] = field(default_factory=list)
+    skipped: bool = False
 
     @property
     def success(self) -> bool:
@@ -114,19 +117,20 @@ class IngestResult:
 # ─── Domain → Default Strategy Mapping ───────────────────────────────────────
 
 DOMAIN_DEFAULT_STRATEGIES: dict[str, str] = {
-    "healthcare":    "sentence_window",    # clinical notes need sentence precision
-    "finance":       "recursive",          # good for mixed prose + numbers
-    "legal":         "document_structure", # legal docs have clear section hierarchy
-    "manufacturing": "table_aware",        # SOPs and spec sheets heavy in tables
-    "ecommerce":     "recursive",          # product descriptions — short and varied
-    "education":     "semantic",           # textbooks benefit from topical coherence
-    "cybersecurity": "recursive",          # CVEs and threat intel — short entries
-    "government":    "document_structure", # policy docs have numbered sections
-    "general":       "recursive",          # safe default for unknown domains
+    "healthcare": "sentence_window",  # clinical notes need sentence precision
+    "finance": "recursive",  # good for mixed prose + numbers
+    "legal": "document_structure",  # legal docs have clear section hierarchy
+    "manufacturing": "table_aware",  # SOPs and spec sheets heavy in tables
+    "ecommerce": "recursive",  # product descriptions — short and varied
+    "education": "semantic",  # textbooks benefit from topical coherence
+    "cybersecurity": "recursive",  # CVEs and threat intel — short entries
+    "government": "document_structure",  # policy docs have numbered sections
+    "general": "recursive",  # safe default for unknown domains
 }
 
 
 # ─── CorpusForge Service ─────────────────────────────────────────────────────
+
 
 class CorpusForge:
     """
@@ -156,12 +160,12 @@ class CorpusForge:
         self,
         db: AsyncSession,
         loader_registry: LoaderRegistry | None = None,
-        chunk_engine:    ChunkEngine | None    = None,
+        chunk_engine: ChunkEngine | None = None,
     ) -> None:
-        self.db             = db
+        self.db = db
         self.loader_registry = loader_registry or default_registry
-        self.chunk_engine    = chunk_engine    or default_chunk_engine
-        self._log            = structlog.get_logger(self.__class__.__name__)
+        self.chunk_engine = chunk_engine or default_chunk_engine
+        self._log = structlog.get_logger(self.__class__.__name__)
 
     # ── Main Entry Point ──────────────────────────────────────────────────────
 
@@ -186,7 +190,7 @@ class CorpusForge:
             IngestResult with statistics and status.
         """
         start = time.perf_counter()
-        log   = self._log.bind(corpus_id=request.corpus_id)
+        log = self._log.bind(corpus_id=request.corpus_id)
         log.info("ingest_started", source=request.source, strategy=request.strategy)
 
         # ── 1. Validate source ────────────────────────────────────────────
@@ -212,8 +216,9 @@ class CorpusForge:
         )
 
         if load_result.success_count == 0:
-            await self._update_status(request.corpus_id, CorpusStatus.FAILED,
-                                       "No documents could be loaded from source")
+            await self._update_status(
+                request.corpus_id, CorpusStatus.FAILED, "No documents could be loaded from source"
+            )
             return IngestResult(
                 corpus_id=request.corpus_id,
                 status="FAILED",
@@ -268,15 +273,16 @@ class CorpusForge:
 
         # ── 8. Update corpus statistics ───────────────────────────────────
         total_tokens = sum(c.token_count for c in all_chunks)
-        avg_tokens   = total_tokens / max(len(all_chunks), 1)
+        avg_tokens = total_tokens / max(len(all_chunks), 1)
 
-        corpus.doc_count   = load_result.success_count
+        corpus.doc_count = load_result.success_count
         corpus.chunk_count = len(all_chunks)
         corpus.total_tokens = total_tokens
         corpus.avg_chunk_tokens = avg_tokens
         corpus.status = CorpusStatus.READY
 
         from datetime import UTC, datetime
+
         corpus.ingestion_completed_at = datetime.now(UTC)
 
         await self.db.commit()
@@ -317,9 +323,7 @@ class CorpusForge:
 
     async def _get_existing_corpus(self, corpus_id: str) -> Corpus | None:
         """Look up an existing corpus by corpus_id."""
-        result = await self.db.execute(
-            select(Corpus).where(Corpus.corpus_id == corpus_id)
-        )
+        result = await self.db.execute(select(Corpus).where(Corpus.corpus_id == corpus_id))
         return result.scalar_one_or_none()
 
     async def _upsert_corpus(
@@ -333,10 +337,10 @@ class CorpusForge:
 
         if existing:
             # Update existing corpus record
-            existing.fingerprint    = fingerprint
-            existing.status         = CorpusStatus.INGESTING
+            existing.fingerprint = fingerprint
+            existing.status = CorpusStatus.INGESTING
             existing.chunk_strategy = ChunkStrategy(request.strategy)
-            existing.chunk_config   = {
+            existing.chunk_config = {
                 "chunk_size": request.chunk_size,
                 "chunk_overlap": request.chunk_overlap,
                 **request.extra_config,
@@ -347,20 +351,20 @@ class CorpusForge:
         else:
             # Create new corpus record
             corpus = Corpus(
-                corpus_id       = request.corpus_id,
-                name            = request.name or request.corpus_id.replace("_", " ").title(),
-                domain          = CorpusDomain(request.domain),
-                fingerprint     = fingerprint,
-                source_path     = request.source,
-                chunk_strategy  = ChunkStrategy(request.strategy),
-                chunk_config    = {
+                corpus_id=request.corpus_id,
+                name=request.name or request.corpus_id.replace("_", " ").title(),
+                domain=CorpusDomain(request.domain),
+                fingerprint=fingerprint,
+                source_path=request.source,
+                chunk_strategy=ChunkStrategy(request.strategy),
+                chunk_config={
                     "chunk_size": request.chunk_size,
                     "chunk_overlap": request.chunk_overlap,
                     **request.extra_config,
                 },
-                embedding_model = request.embedding_model,
-                status          = CorpusStatus.INGESTING,
-                doc_count       = doc_count,
+                embedding_model=request.embedding_model,
+                status=CorpusStatus.INGESTING,
+                doc_count=doc_count,
             )
             self.db.add(corpus)
             await self.db.flush()  # get the generated UUID without full commit
@@ -378,22 +382,23 @@ class CorpusForge:
         Uses SQLAlchemy bulk_insert_mappings for performance on large corpora.
         Flushes every 1000 chunks to avoid holding a giant transaction open.
         """
-        from backend.models.corpus import ChunkStrategy as ChunkStrategyEnum
 
         BATCH_SIZE = 1000
         batch: list[dict] = []
 
         for text_chunk in chunks:
-            batch.append({
-                "corpus_id":      corpus_uuid,
-                "text":           text_chunk.text,
-                "token_count":    text_chunk.token_count,
-                "source_doc_id":  text_chunk.source_doc_id,
-                "chunk_index":    text_chunk.chunk_index,
-                "chunk_strategy": ChunkStrategy(request.strategy),
-                "chunk_metadata": text_chunk.metadata,
-                # embedding filled later by EmbedHub
-            })
+            batch.append(
+                {
+                    "corpus_id": corpus_uuid,
+                    "text": text_chunk.text,
+                    "token_count": text_chunk.token_count,
+                    "source_doc_id": text_chunk.source_doc_id,
+                    "chunk_index": text_chunk.chunk_index,
+                    "chunk_strategy": ChunkStrategy(request.strategy),
+                    "chunk_metadata": text_chunk.metadata,
+                    # embedding filled later by EmbedHub
+                }
+            )
 
             if len(batch) >= BATCH_SIZE:
                 await self._flush_batch(batch)
