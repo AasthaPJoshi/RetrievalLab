@@ -90,7 +90,7 @@ export function timeAgo(dateStr: string): string {
 }
 
 export function confidenceLabel(score: number): { label: string; color: string } {
-  if (score >= 0.85) return { label: 'High',   color: 'text-accent-green' };
-  if (score >= 0.60) return { label: 'Medium', color: 'text-accent-amber' };
-  return               { label: 'Low',    color: 'text-accent-red' };
+  if (score >= 0.85) return { label: 'High',   color: 'text-status-success' };
+  if (score >= 0.60) return { label: 'Medium', color: 'text-status-warning' };
+  return               { label: 'Low',    color: 'text-status-error' };
 }

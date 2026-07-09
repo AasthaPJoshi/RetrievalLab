@@ -60,6 +60,8 @@ class AgentResponseSchema(BaseModel):
     answer:           str
     sources:          list[dict]
     confidence:       float
+    model_confidence:   float | None = None
+    hallucination_risk: bool = False
     citations:        list[str]
     query_type:       str
     detected_domain:  str

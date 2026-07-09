@@ -1,0 +1,182 @@
+# =============================================================================
+# RetrievalLab — .github/workflows/ci.yml
+# =============================================================================
+# PURPOSE : CI pipeline that runs on every push and pull request.
+#           Checks code quality (lint, type) and runs the test suite.
+#
+# PIPELINE:
+#   1. lint    — ruff check + ruff format check (no DB required)
+#   2. type    — mypy static type checking
+#   3. test    — pytest unit tests (no DB, no Docker)
+#   4. test-integration — pytest integration tests (needs PostgreSQL service)
+#
+# TRIGGERS:
+#   push to main/develop branches
+#   any pull request to main
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  POSTGRES_DB:       retrievallab_test
+  POSTGRES_USER:     retrievallab
+  POSTGRES_PASSWORD: test_password
+
+jobs:
+  # ─── Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Ruff check (lint)
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  # ─── Type Check ────────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run mypy
+        run: mypy backend/ corpus/ eval/ --ignore-missing-imports
+
+  # ─── Unit Tests ────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Download spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      - name: Download NLTK data
+        run: python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('punkt_tab')"
+
+      - name: Run unit tests
+        env:
+          APP_ENV: testing
+          DATABASE_URL: postgresql+asyncpg://localhost/test   # will fail gracefully
+          REDIS_URL: redis://localhost:6379/0
+          ANTHROPIC_API_KEY: test_key_not_real
+          OPENAI_API_KEY: test_key_not_real
+        run: |
+          pytest tests/unit/ -v \
+            --no-cov \
+            -m "not requires_db and not integration" \
+            --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: .coverage
+
+  # ─── Integration Tests (with PostgreSQL) ───────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB:       retrievallab_test
+          POSTGRES_USER:     retrievallab
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Download spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      - name: Download NLTK data
+        run: python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('punkt_tab')"
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://retrievallab:test_password@localhost:5432/retrievallab_test
+          POSTGRES_HOST:     localhost
+          POSTGRES_DB:       retrievallab_test
+          POSTGRES_USER:     retrievallab
+          POSTGRES_PASSWORD: test_password
+        run: alembic upgrade head
+
+      - name: Run integration tests
+        env:
+          APP_ENV: testing
+          DATABASE_URL: postgresql+asyncpg://retrievallab:test_password@localhost:5432/retrievallab_test
+          POSTGRES_HOST:     localhost
+          POSTGRES_DB:       retrievallab_test
+          POSTGRES_USER:     retrievallab
+          POSTGRES_PASSWORD: test_password
+          REDIS_URL: redis://localhost:6379/0
+          ANTHROPIC_API_KEY: test_key_not_real
+          OPENAI_API_KEY: test_key_not_real
+          MLFLOW_TRACKING_URI: file:///tmp/mlflow
+        run: |
+          pytest tests/integration/ -v \
+            --no-cov \
+            -m "integration or requires_db" \
+            --tb=short

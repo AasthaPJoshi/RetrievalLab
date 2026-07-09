@@ -164,6 +164,14 @@ class ObserveLab:
                 buckets=[10, 50, 100, 500, 1000, 3000],
             )
 
+            # Rerank rank-shift — how much cross-encoder reranking changed result order
+            self._histograms["rerank_score_delta"] = Histogram(
+                "retrievallab_rerank_score_delta",
+                "Average rank position shift caused by cross-encoder reranking",
+                labelnames=["corpus_id"],
+                buckets=[0, 0.5, 1, 2, 3, 5, 10, 20],
+            )
+
             # Start HTTP server for Prometheus scraping
             try:
                 start_http_server(port)
@@ -290,6 +298,12 @@ class ObserveLab:
         if not self._prom_available:
             return
         self._histograms["agent_node_latency"].labels(node_name=node_name).observe(latency_ms)
+
+    def record_rerank_delta(self, corpus_id: str, avg_rank_shift: float) -> None:
+        """Record how much reranking changed result ordering vs initial retrieval score."""
+        if not self._prom_available:
+            return
+        self._histograms["rerank_score_delta"].labels(corpus_id=corpus_id).observe(avg_rank_shift)
 
     def get_stats_snapshot(self) -> dict[str, Any]:
         """Return current metrics snapshot as a dict (for /health endpoint)."""

@@ -113,6 +113,8 @@ export interface AgentResponse {
   answer:           string;
   sources:          RetrieveResultItem[];
   confidence:       number;
+  model_confidence:   number | null;
+  hallucination_risk: boolean;
   citations:        string[];
   query_type:       string;
   detected_domain:  string;

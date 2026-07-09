@@ -17,8 +17,8 @@ const MODES = ['hybrid', 'dense', 'sparse'] as const;
 type Mode = typeof MODES[number];
 
 const MODE_LABELS: Record<Mode, { label: string; desc: string; color: string }> = {
-  hybrid: { label: 'Hybrid',  desc: 'RRF fusion of sparse + dense',    color: 'text-purple-300' },
-  dense:  { label: 'Dense',   desc: 'Vector similarity (cosine)',       color: 'text-purple-400' },
+  hybrid: { label: 'Hybrid',  desc: 'RRF fusion of sparse + dense',    color: 'text-accent-500' },
+  dense:  { label: 'Dense',   desc: 'Vector similarity (cosine)',       color: 'text-accent-500' },
   sparse: { label: 'Sparse',  desc: 'BM25 keyword matching',           color: 'text-amber-400' },
 };
 
@@ -59,12 +59,12 @@ export default function RetrievalPage() {
       <main className="p-8 max-w-5xl mx-auto space-y-6">
         {/* Search Form */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6">
+          className="card p-6">
 
           <form onSubmit={handleSearch} className="space-y-4">
             {/* Query input */}
             <div className="relative">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-700" />
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -89,19 +89,19 @@ export default function RetrievalPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" />
               </div>
 
               {/* Mode selector */}
-              <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(124,58,237,0.15)' }}>
+              <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(14,165,233,0.15)' }}>
                 {MODES.map(m => (
                   <button key={m} type="button"
                     onClick={() => setMode(m)}
                     className={cn(
                       'px-4 py-2.5 text-xs font-medium transition-all duration-150',
                       mode === m
-                        ? 'bg-purple-500/15 text-purple-300 border-r border-purple-500/20'
-                        : 'text-slate-500 hover:text-white hover:bg-white/5 border-r border-white/5'
+                        ? 'bg-purple-500/15 text-accent-500 border-r border-purple-500/20'
+                        : 'text-slate-700 hover:text-text-primary hover:bg-white/5 border-r border-white/5'
                     )}
                   >
                     {MODE_LABELS[m].label}
@@ -111,7 +111,7 @@ export default function RetrievalPage() {
 
               {/* Options toggle */}
               <button type="button" onClick={() => setShowOpts(!showOpts)}
-                className={cn('btn-ghost border border-white/8', showOpts && 'border-purple-500/30 text-purple-300')}>
+                className={cn('btn-ghost border border-white/8', showOpts && 'border-purple-500/30 text-accent-500')}>
                 <Sliders size={13} />
                 Options
               </button>
@@ -134,17 +134,17 @@ export default function RetrievalPage() {
                   className="overflow-hidden"
                 >
                   <div className="pt-4 border-t flex gap-6 items-center"
-                    style={{ borderColor: 'rgba(124,58,237,0.08)' }}>
+                    style={{ borderColor: 'rgba(14,165,233,0.08)' }}>
                     <div className="flex items-center gap-3">
-                      <label className="text-xs text-slate-500 whitespace-nowrap">Top K:</label>
+                      <label className="text-xs text-slate-700 whitespace-nowrap">Top K:</label>
                       <input
                         type="range" min={1} max={50} value={topK}
                         onChange={e => setTopK(Number(e.target.value))}
                         className="w-32 accent-cyan-500"
                       />
-                      <span className="text-xs font-mono text-purple-300 w-6 text-center">{topK}</span>
+                      <span className="text-xs font-mono text-accent-500 w-6 text-center">{topK}</span>
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-700">
                       Mode: <span className={cn('font-medium', MODE_LABELS[mode].color)}>
                         {MODE_LABELS[mode].desc}
                       </span>
@@ -162,7 +162,7 @@ export default function RetrievalPage() {
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="glass-card p-5 space-y-2">
+                <div key={i} className="card p-5 space-y-2">
                   <div className="flex gap-4">
                     <div className="skeleton h-4 w-8 rounded" />
                     <div className="skeleton h-4 flex-1 rounded" />
@@ -178,7 +178,7 @@ export default function RetrievalPage() {
             <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               {/* Meta bar */}
               {meta && (
-                <div className="flex items-center gap-4 mb-4 text-xs text-slate-500">
+                <div className="flex items-center gap-4 mb-4 text-xs text-slate-700">
                   <span className="flex items-center gap-1.5">
                     <BarChart2 size={12} />
                     {meta.total} results
@@ -206,10 +206,10 @@ export default function RetrievalPage() {
 
           {!searchMut.isPending && searchMut.isSuccess && results.length === 0 && (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="glass-card p-12 text-center">
+              className="card p-12 text-center">
               <Search size={32} className="mx-auto text-slate-700 mb-3" />
-              <p className="text-slate-400 text-sm">No results found</p>
-              <p className="text-slate-600 text-xs mt-1">Try a different query or switch to hybrid mode</p>
+              <p className="text-slate-700 text-sm">No results found</p>
+              <p className="text-text-secondary text-xs mt-1">Try a different query or switch to hybrid mode</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -226,15 +226,15 @@ function ResultCard({ result, rank }: { result: RetrieveResultItem; rank: number
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: rank * 0.04 }}
-      className="glass-card overflow-hidden group"
+      className="card overflow-hidden group"
     >
       <div className="flex items-start gap-4 p-5">
         {/* Rank badge */}
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm"
           style={{
-            background: rank === 1 ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.05)',
-            color:      rank === 1 ? '#8B5CF6' : '#6B7AA0',
-            border:     rank === 1 ? '1px solid rgba(124,58,237,0.25)' : '1px solid rgba(255,255,255,0.06)',
+            background: rank === 1 ? 'rgba(14,165,233,0.15)' : 'rgba(15,23,42,0.035)',
+            color:      rank === 1 ? '#0EA5E9' : '#64748B',
+            border:     rank === 1 ? '1px solid rgba(14,165,233,0.25)' : '1px solid rgba(15,23,42,0.035)',
           }}>
           {rank}
         </div>
@@ -242,8 +242,8 @@ function ResultCard({ result, rank }: { result: RetrieveResultItem; rank: number
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
-            <FileText size={12} className="text-slate-600 shrink-0" />
-            <span className="text-xs text-slate-500 font-mono truncate">
+            <FileText size={12} className="text-text-secondary shrink-0" />
+            <span className="text-xs text-slate-700 font-mono truncate">
               {result.source_doc || result.chunk_id}
             </span>
             <span className="badge-cyan text-[10px] shrink-0">{result.retrieval_mode}</span>
@@ -255,7 +255,7 @@ function ResultCard({ result, rank }: { result: RetrieveResultItem; rank: number
 
           {result.text.length > 240 && (
             <button onClick={() => setExpanded(!expanded)}
-              className="text-xs text-purple-400 hover:text-purple-300 mt-1.5 transition-colors">
+              className="text-xs text-accent-500 hover:text-accent-500 mt-1.5 transition-colors">
               {expanded ? 'Show less' : 'Show more'}
             </button>
           )}
@@ -266,7 +266,7 @@ function ResultCard({ result, rank }: { result: RetrieveResultItem; rank: number
           <div className={cn('text-lg font-bold font-mono', scoreColor(result.score))}>
             {result.score.toFixed(4)}
           </div>
-          <div className="text-[10px] text-slate-600 uppercase tracking-wider">score</div>
+          <div className="text-[10px] text-text-secondary uppercase tracking-wider">score</div>
         </div>
       </div>
 
@@ -275,7 +275,7 @@ function ResultCard({ result, rank }: { result: RetrieveResultItem; rank: number
         <div className="h-full transition-all duration-700"
           style={{
             width: `${Math.min(result.score * 100, 100)}%`,
-            background: 'linear-gradient(90deg, #8B5CF6, #3B82F6)',
+            background: 'linear-gradient(90deg, #0EA5E9, #38BDF8)',
           }} />
       </div>
     </motion.div>

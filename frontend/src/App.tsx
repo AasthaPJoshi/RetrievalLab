@@ -24,8 +24,6 @@ export default function App() {
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex-1 ml-64 min-h-screen">
-            {/* Ambient scan line */}
-            <div className="scan-line" />
             <Routes>
               <Route path="/"            element={<Dashboard />} />
               <Route path="/corpus"      element={<CorpusPage />} />
@@ -34,7 +32,6 @@ export default function App() {
               <Route path="/eval"        element={<EvalPage />} />
               <Route path="/adversarial" element={<AdversarialPage />} />
               <Route path="/metrics"     element={<MetricsPage />} />
-              <Route path="/benchmarks"  element={<EvalPage />} />
               <Route path="/docs"        element={<APIDocsPage />} />
             </Routes>
           </main>
@@ -45,15 +42,14 @@ export default function App() {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: '#100C2E',
-            color: '#DDD6FE',
-            border: '1px solid rgba(124,58,237,0.25)',
-            borderRadius: '12px',
+            background: '#151517',
+            color: '#F5F5F5',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '3px',
             fontSize: '13px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(124,58,237,0.1)',
           },
-          success: { iconTheme: { primary: '#10B981', secondary: '#100C2E' } },
-          error:   { iconTheme: { primary: '#EF4444', secondary: '#100C2E' } },
+          success: { iconTheme: { primary: '#22C55E', secondary: '#151517' } },
+          error:   { iconTheme: { primary: '#EF4444', secondary: '#151517' } },
         }}
       />
     </QueryClientProvider>
@@ -64,7 +60,7 @@ function APIDocsPage() {
   return (
     <div className="flex items-center justify-center h-96">
       <div className="text-center">
-        <p className="mb-4" style={{ color: 'rgba(167,139,250,0.6)' }}>
+        <p className="mb-4 text-text-secondary">
           API documentation available at:
         </p>
         <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer"

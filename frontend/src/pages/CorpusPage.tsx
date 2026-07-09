@@ -42,10 +42,10 @@ export default function CorpusPage() {
         {/* Toolbar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-slate-700">
               <Database size={14} />
               <span>{corpora.length} corpora</span>
-              <span className="text-slate-600">·</span>
+              <span className="text-text-secondary">·</span>
               <span className="text-emerald-400">{corpora.filter(c => c.status === 'ready').length} ready</span>
             </div>
           </div>
@@ -97,22 +97,22 @@ function CorpusCard({ corpus, index, onDelete }: { corpus: Corpus; index: number
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ delay: index * 0.04 }}
-      className="glass-card p-5 group relative overflow-hidden"
+      className="card p-5 group relative overflow-hidden"
     >
       {/* Domain accent corner */}
       <div className="absolute top-0 right-0 w-24 h-24 opacity-10 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at top right, #8B5CF6, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(circle at top right, #0EA5E9, transparent 70%)' }} />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: 'rgba(15,23,42,0.035)', border: '1px solid rgba(15,23,42,0.035)' }}>
             {domainIcon(corpus.domain)}
           </div>
           <div>
-            <div className="text-sm font-semibold text-white leading-snug">{corpus.corpus_id}</div>
-            <div className="text-[10px] text-slate-500 capitalize mt-0.5">{corpus.domain} · {corpus.version}</div>
+            <div className="text-sm font-semibold text-text-primary leading-snug">{corpus.corpus_id}</div>
+            <div className="text-[10px] text-slate-700 capitalize mt-0.5">{corpus.domain} · {corpus.version}</div>
           </div>
         </div>
         <span className={cn('badge text-[10px]', statusBadge(corpus.status))}>
@@ -128,15 +128,15 @@ function CorpusCard({ corpus, index, onDelete }: { corpus: Corpus; index: number
           { label: 'Tokens',  value: formatTokens(corpus.total_tokens) },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-lg p-2.5 text-center"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div className="text-sm font-bold text-white">{value}</div>
-            <div className="text-[9px] text-slate-600 uppercase tracking-wider mt-0.5">{label}</div>
+            style={{ background: 'rgba(15,23,42,0.035)', border: '1px solid rgba(15,23,42,0.035)' }}>
+            <div className="text-sm font-bold text-text-primary">{value}</div>
+            <div className="text-[9px] text-text-secondary uppercase tracking-wider mt-0.5">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Strategy + timing */}
-      <div className="flex items-center justify-between text-xs text-slate-600">
+      <div className="flex items-center justify-between text-xs text-text-secondary">
         <span className="flex items-center gap-1">
           <Layers size={10} />
           {corpus.chunk_strategy}
@@ -151,7 +151,7 @@ function CorpusCard({ corpus, index, onDelete }: { corpus: Corpus; index: number
       <button onClick={onDelete}
         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity
                    w-7 h-7 flex items-center justify-center rounded-lg
-                   text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                   text-text-secondary hover:text-red-400 hover:bg-red-400/10 transition-colors">
         <Trash2 size={13} />
       </button>
     </motion.div>
@@ -187,11 +187,11 @@ function IngestModal({ onClose }: { onClose: () => void }) {
     >
       <motion.div
         initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-        className="glass-card w-full max-w-lg p-6"
-        style={{ border: '1px solid rgba(124,58,237,0.2)' }}
+        className="card w-full max-w-lg p-6"
+        style={{ border: '1px solid rgba(14,165,233,0.2)' }}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-white">Ingest Corpus</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Ingest Corpus</h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X size={16} /></button>
         </div>
 
@@ -210,13 +210,13 @@ function IngestModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-slate-500 mb-1.5">Chunk Size (tokens)</label>
+              <label className="block text-xs text-slate-700 mb-1.5">Chunk Size (tokens)</label>
               <input type="number" value={form.chunk_size} min={64} max={2048}
                 onChange={e => set('chunk_size', Number(e.target.value))}
                 className="input-field" />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 mb-1.5">Overlap (tokens)</label>
+              <label className="block text-xs text-slate-700 mb-1.5">Overlap (tokens)</label>
               <input type="number" value={form.chunk_overlap} min={0} max={512}
                 onChange={e => set('chunk_overlap', Number(e.target.value))}
                 className="input-field" />
@@ -224,9 +224,9 @@ function IngestModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex items-start gap-2 p-3 rounded-lg text-xs"
-            style={{ background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.1)' }}>
-            <AlertCircle size={13} className="text-purple-300 shrink-0 mt-0.5" />
-            <span className="text-slate-400">
+            style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.1)' }}>
+            <AlertCircle size={13} className="text-accent-500 shrink-0 mt-0.5" />
+            <span className="text-slate-700">
               Ingestion runs in the background. Refresh the corpus list to check status.
               Large corpora may take several minutes.
             </span>
@@ -255,7 +255,7 @@ function IngestModal({ onClose }: { onClose: () => void }) {
 function Field({ label, placeholder, value, onChange }: { label: string; placeholder: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-xs text-slate-500 mb-1.5">{label}</label>
+      <label className="block text-xs text-slate-700 mb-1.5">{label}</label>
       <input type="text" value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder} className="input-field" />
     </div>
@@ -265,13 +265,13 @@ function Field({ label, placeholder, value, onChange }: { label: string; placeho
 function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <div>
-      <label className="block text-xs text-slate-500 mb-1.5">{label}</label>
+      <label className="block text-xs text-slate-700 mb-1.5">{label}</label>
       <div className="relative">
         <select value={value} onChange={e => onChange(e.target.value)}
           className="input-field appearance-none pr-8 cursor-pointer capitalize">
           {options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" />
       </div>
     </div>
   );
@@ -279,7 +279,7 @@ function SelectField({ label, value, onChange, options }: { label: string; value
 
 function CorpusCardSkeleton() {
   return (
-    <div className="glass-card p-5 space-y-4">
+    <div className="card p-5 space-y-4">
       <div className="flex gap-3">
         <div className="skeleton w-10 h-10 rounded-xl" />
         <div className="space-y-1.5 flex-1">
@@ -297,10 +297,10 @@ function CorpusCardSkeleton() {
 function EmptyState({ onIngest }: { onIngest: () => void }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      className="glass-card p-16 text-center">
+      className="card p-16 text-center">
       <Database size={40} className="mx-auto text-slate-700 mb-4" />
       <h3 className="text-lg font-semibold text-slate-300 mb-2">No corpora yet</h3>
-      <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
+      <p className="text-sm text-slate-700 max-w-sm mx-auto mb-6">
         Ingest your first document collection to start building and evaluating retrieval systems.
       </p>
       <button onClick={onIngest} className="btn-primary">

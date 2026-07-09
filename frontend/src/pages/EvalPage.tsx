@@ -6,21 +6,23 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, Play, Loader2, BarChart3, Target, TrendingUp, Info } from 'lucide-react';
+import { FlaskConical, Play, Loader2, BarChart3, Target, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { Header } from '@/components/layout/Header';
+import { EvalEngineIntro } from '@/components/eval/EvalEngineIntro';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { api } from '@/lib/api';
 import { cn, scoreColor } from '@/lib/utils';
 
 const CHART_TOOLTIP_STYLE = {
-  backgroundColor: '#100C2E',
-  border: '1px solid rgba(124,58,237,0.2)',
-  borderRadius: '8px',
-  color: '#DDD6FE',
+  backgroundColor: '#FFFFFF',
+  border: '1px solid #E5E7EB',
+  borderRadius: '3px',
+  color: '#0F172A',
   fontSize: '12px',
+  fontFamily: 'JetBrains Mono, monospace',
 };
 
 export default function EvalPage() {
@@ -58,28 +60,21 @@ export default function EvalPage() {
       <Header title="Eval Engine" subtitle="Compute NDCG@K · MRR · MAP · Precision · Recall for retrieval results" />
 
       <main className="p-8 space-y-6 max-w-6xl mx-auto">
-        {/* Explainer */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-5 flex items-start gap-3">
-          <Info size={15} className="text-purple-300 shrink-0 mt-0.5" />
-          <div className="text-xs text-slate-400 leading-relaxed">
-            <strong className="text-white">How it works:</strong> Enter your retrieved chunk IDs in ranked order (best first),
-            then specify which IDs are ground-truth relevant and their relevance grades.
-            The engine computes all standard IR metrics instantly.
-            <span className="text-purple-300 ml-1">Grade 2.0 = highly relevant, 1.0 = relevant.</span>
-          </div>
+        {/* Educational intro */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <EvalEngineIntro />
         </motion.div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Input panel */}
-          <div className="glass-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <FlaskConical size={14} className="text-purple-300" />
+          <div className="card p-6 space-y-4">
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+              <FlaskConical size={14} className="text-accent-500" />
               Evaluation Input
             </h3>
 
             <div>
-              <label className="block text-xs text-slate-500 mb-2">
+              <label className="block text-xs text-slate-700 mb-2">
                 Query Text <span className="text-slate-700">(for context)</span>
               </label>
               <input value={query} onChange={e => setQuery(e.target.value)}
@@ -87,7 +82,7 @@ export default function EvalPage() {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-500 mb-2">
+              <label className="block text-xs text-slate-700 mb-2">
                 Retrieved IDs <span className="text-slate-700">(one per line, ranked order)</span>
               </label>
               <textarea value={retrievedIds} onChange={e => setRetrievedIds(e.target.value)}
@@ -96,7 +91,7 @@ export default function EvalPage() {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-500 mb-2">
+              <label className="block text-xs text-slate-700 mb-2">
                 Relevant IDs <span className="text-slate-700">(format: id: grade)</span>
               </label>
               <textarea value={relevantIds} onChange={e => setRelevantIds(e.target.value)}
@@ -128,29 +123,29 @@ export default function EvalPage() {
                   </div>
 
                   {/* Radar chart */}
-                  <div className="glass-card p-5">
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                  <div className="card p-5">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-4">
                       Metric Radar
                     </h4>
                     <ResponsiveContainer width="100%" height={200}>
                       <RadarChart data={radarData}>
-                        <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                        <PolarAngleAxis dataKey="metric" tick={{ fill: '#6B7AA0', fontSize: 10 }} />
-                        <Radar dataKey="value" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.15} />
+                        <PolarGrid stroke="#E5E7EB" />
+                        <PolarAngleAxis dataKey="metric" tick={{ fill: '#475569', fontSize: 10 }} />
+                        <Radar dataKey="value" stroke="#0EA5E9" fill="#0EA5E9" fillOpacity={0.12} />
                         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: any) => v.toFixed(4)} />
                       </RadarChart>
                     </ResponsiveContainer>
                   </div>
 
                   {/* All metrics table */}
-                  <div className="glass-card overflow-hidden">
+                  <div className="card overflow-hidden">
                     <div className="px-5 py-3 border-b" style={{ borderColor: 'rgba(124,58,237,0.08)' }}>
-                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">All Metrics</h4>
+                      <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">All Metrics</h4>
                     </div>
                     <div className="divide-y" style={{ '--tw-divide-opacity': '1' }}>
                       {Object.entries(result).map(([key, val]) => (
                         <div key={key} className="flex items-center justify-between px-5 py-2.5">
-                          <span className="text-xs font-mono text-slate-400">{key}</span>
+                          <span className="text-xs font-mono text-slate-700">{key}</span>
                           <div className="flex items-center gap-3">
                             <div className="w-24 h-1 rounded-full bg-white/5">
                               <div className="h-full rounded-full bg-purple-500/50 transition-all"
@@ -169,9 +164,9 @@ export default function EvalPage() {
             </AnimatePresence>
 
             {!result && !scoreMut.isPending && (
-              <div className="glass-card p-12 text-center">
+              <div className="card p-12 text-center">
                 <BarChart3 size={32} className="mx-auto text-slate-700 mb-3" />
-                <p className="text-sm text-slate-500">Enter retrieval results and click Compute Metrics</p>
+                <p className="text-sm text-slate-700">Enter retrieval results and click Compute Metrics</p>
                 <p className="text-xs text-slate-700 mt-1">NDCG@10, MRR, MAP, Precision, Recall, Hit Rate</p>
               </div>
             )}

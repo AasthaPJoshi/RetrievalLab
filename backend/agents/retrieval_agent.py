@@ -39,6 +39,8 @@ from typing import Any, Literal, TypedDict
 
 import structlog
 
+from services.observe_lab import observe_lab
+
 logger = structlog.get_logger(__name__)
 
 
@@ -70,6 +72,7 @@ class AgentState(TypedDict):
     # Node 3 outputs
     reranked_results:  list[dict]    # after cross-encoder reranking
     dropped_count:     int           # chunks filtered out
+    rerank_avg_shift:  float         # avg rank position shift caused by reranking
 
     # Node 4 outputs
     answer:            str           # synthesized answer
@@ -77,7 +80,9 @@ class AgentState(TypedDict):
 
     # Node 5 outputs
     sources:           list[dict]    # [{chunk_id, text, score, rank}]
-    confidence:        float         # 0-1 overall confidence
+    confidence:        float         # 0-1 retrieval-grounded confidence
+    model_confidence:  float | None  # LLM's self-reported confidence, parsed from answer text
+    hallucination_risk: bool         # True if retrieval and model confidence diverge sharply
     citations:         list[str]     # formatted citation strings
     trace:             list[str]     # agent execution trace for debugging
 
@@ -104,6 +109,8 @@ class AgentResponse:
     answer:          str
     sources:         list[dict]
     confidence:      float
+    model_confidence: float | None
+    hallucination_risk: bool
     citations:       list[str]
     query_type:      str
     detected_domain: str
@@ -123,6 +130,8 @@ class AgentResponse:
             "answer":          self.answer,
             "sources":         self.sources,
             "confidence":      self.confidence,
+            "model_confidence":   self.model_confidence,
+            "hallucination_risk": self.hallucination_risk,
             "citations":       self.citations,
             "query_type":      self.query_type,
             "detected_domain": self.detected_domain,
@@ -193,6 +202,9 @@ class QueryAnalyzerNode:
         if query_type in ("analytical", "comparative"):
             sub_queries = await self._decompose_query(state["query_text"])
 
+        latency = (time.perf_counter() - start) * 1000
+        observe_lab.record_agent_node("query_analyzer", latency)
+
         state.update({
             "query_type":      query_type,
             "expanded_query":  expanded_query,
@@ -200,7 +212,7 @@ class QueryAnalyzerNode:
             "sub_queries":     sub_queries,
             "trace": state.get("trace", []) + [
                 f"[Node1/QueryAnalyzer] type={query_type} domain={detected_domain} "
-                f"expanded={len(expanded_query)} chars latency={round((time.perf_counter()-start)*1000)}ms"
+                f"expanded={len(expanded_query)} chars latency={round(latency)}ms"
             ],
         })
         return state
@@ -287,6 +299,7 @@ class MultiRetrieverNode:
             raw = []
 
         latency = (time.perf_counter() - start) * 1000
+        observe_lab.record_agent_node("multi_retriever", latency)
 
         state.update({
             "raw_results":       raw,
@@ -337,16 +350,26 @@ class RankForgeNode:
             None, self._rerank_sync, query, raw
         )
 
+        # Rank-shift: how much did the cross-encoder reorder vs. initial retrieval order
+        pre_order = {r["chunk_id"]: i for i, r in enumerate(raw)}
+        avg_shift = sum(
+            abs(pre_order.get(r["chunk_id"], i) - i) for i, r in enumerate(reranked)
+        ) / max(len(reranked), 1)
+        observe_lab.record_rerank_delta(state.get("corpus_id", "unknown"), avg_shift)
+
         # Apply MMR to add diversity
         final    = self._apply_mmr(query, reranked, top_k=min(state["top_k"], len(reranked)))
         dropped  = len(raw) - len(final)
         latency  = (time.perf_counter() - start) * 1000
+        observe_lab.record_agent_node("rank_forge", latency)
 
         state.update({
             "reranked_results": final,
             "dropped_count":    dropped,
+            "rerank_avg_shift": round(avg_shift, 2),
             "trace": state.get("trace", []) + [
-                f"[Node3/RankForge] reranked={len(final)} dropped={dropped} latency={round(latency)}ms"
+                f"[Node3/RankForge] reranked={len(final)} dropped={dropped} "
+                f"avg_shift={round(avg_shift, 2)} latency={round(latency)}ms"
             ],
         })
         return state
@@ -447,6 +470,7 @@ RULES:
 
         answer = await self._synthesize(query, results)
         latency = (time.perf_counter() - start) * 1000
+        observe_lab.record_agent_node("synthesizer", latency)
 
         state.update({
             "answer":            answer,
@@ -501,6 +525,7 @@ class OutputFormatterNode:
     """
 
     async def run(self, state: AgentState) -> AgentState:
+        start   = time.perf_counter()
         results = state.get("reranked_results") or state.get("raw_results", [])
         answer  = state.get("answer", "")
 
@@ -525,44 +550,76 @@ class OutputFormatterNode:
 
         # Compute confidence
         confidence = self._compute_confidence(sources, answer)
+        model_confidence = self._extract_model_confidence(answer)
+        hallucination_risk = (
+            model_confidence is not None and abs(confidence - model_confidence) > 0.3
+        )
+        observe_lab.record_agent_node("output_formatter", (time.perf_counter() - start) * 1000)
 
         state.update({
             "sources":    sources,
             "citations":  citations,
             "confidence": confidence,
+            "model_confidence":   model_confidence,
+            "hallucination_risk": hallucination_risk,
             "trace": state.get("trace", []) + [
-                f"[Node5/OutputFormatter] sources={len(sources)} confidence={confidence:.2f}"
+                f"[Node5/OutputFormatter] sources={len(sources)} retrieval_conf={confidence:.2f} "
+                f"model_conf={model_confidence if model_confidence is None else round(model_confidence, 2)} "
+                f"hallucination_risk={hallucination_risk}"
             ],
         })
         return state
 
     def _compute_confidence(self, sources: list[dict], answer: str) -> float:
         """
-        Composite confidence = avg(top3_scores) × answer_quality_signal.
+        Retrieval-grounded confidence, weighted composite of:
+          40% top1_score       — how strong is the #1 retrieved match
+          25% score_gap        — big gap vs #2 = confident, small gap = ambiguous
+          20% doc_coverage     — how many of the top results clear a relevance bar
+          15% reranker_top1    — cross-encoder's own top-1 score, if reranking ran
 
-        Answer quality signals:
-        - Contains "not found" or "insufficient" → reduce by 50%
-        - References [Source N] citations → small boost
-        - Longer answer → small boost (more grounded)
+        All raw scores are squashed to 0-1 via sigmoid before combining, since
+        cross-encoder and BM25 scores are on different, uncalibrated scales.
         """
         if not sources:
             return 0.0
 
-        top_scores  = [s["score"] for s in sources[:3]]
-        avg_score   = sum(top_scores) / len(top_scores)
+        norm_scores = [self._sigmoid(s["score"]) for s in sources]
+        top1 = norm_scores[0]
+        top2 = norm_scores[1] if len(norm_scores) > 1 else 0.0
+        score_gap = max(top1 - top2, 0.0)
 
-        quality = 1.0
-        low_conf_phrases = ["not found", "insufficient", "cannot find", "no information"]
-        if any(p in answer.lower() for p in low_conf_phrases):
-            quality *= 0.5
+        relevance_bar = 0.5
+        doc_coverage = sum(1 for s in norm_scores[:10] if s >= relevance_bar) / min(len(norm_scores), 10)
 
-        citation_count = answer.count("[Source")
-        quality += min(citation_count * 0.05, 0.15)
+        # reranker_top1 falls back to top1 if reranking didn't run (no separate signal)
+        reranker_top1 = top1
 
-        if len(answer) > 200:
-            quality += 0.05
+        confidence = (
+            0.40 * top1
+            + 0.25 * score_gap
+            + 0.20 * doc_coverage
+            + 0.15 * reranker_top1
+        )
+        return round(min(confidence, 1.0), 3)
 
-        return min(round(avg_score * quality, 3), 1.0)
+    @staticmethod
+    def _sigmoid(x: float) -> float:
+        import math
+        return 1 / (1 + math.exp(-x))
+
+    @staticmethod
+    def _extract_model_confidence(answer: str) -> float | None:
+        """
+        Parse the LLM's self-reported confidence line, e.g.
+        "Confidence: Medium - retrieved context partially addresses the query."
+        Requested in the synthesis prompt but previously never captured.
+        """
+        import re
+        match = re.search(r"confidence:\s*(high|medium|low)", answer, re.IGNORECASE)
+        if not match:
+            return None
+        return {"high": 0.85, "medium": 0.55, "low": 0.25}[match.group(1).lower()]
 
 
 # ─── RetrievalAgent Orchestrator ─────────────────────────────────────────────
@@ -632,10 +689,13 @@ class RetrievalAgent:
             "retrieval_latency": 0.0,
             "reranked_results": [],
             "dropped_count":   0,
+            "rerank_avg_shift": 0.0,
             "answer":          "",
             "synthesis_latency": 0.0,
             "sources":         [],
             "confidence":      0.0,
+            "model_confidence":   None,
+            "hallucination_risk": False,
             "citations":       [],
             "trace":           [f"[Agent] started query_id={query.query_id}"],
         }
@@ -672,6 +732,8 @@ class RetrievalAgent:
             answer           = state.get("answer", ""),
             sources          = state.get("sources", []),
             confidence       = state.get("confidence", 0.0),
+            model_confidence   = state.get("model_confidence"),
+            hallucination_risk = state.get("hallucination_risk", False),
             citations        = state.get("citations", []),
             query_type       = state.get("query_type", "factoid"),
             detected_domain  = state.get("detected_domain", "general"),

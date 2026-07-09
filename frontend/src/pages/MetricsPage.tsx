@@ -25,7 +25,7 @@ export default function MetricsPage() {
         {health && (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             className={cn(
-              'glass-card p-6 border-l-4',
+              'card p-6 border-l-4',
               health.status === 'healthy'   ? 'border-accent-green' :
               health.status === 'degraded'  ? 'border-accent-amber' : 'border-accent-red'
             )}>
@@ -40,18 +40,18 @@ export default function MetricsPage() {
                   } />
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-white capitalize">
+                  <div className="text-lg font-bold text-text-primary capitalize">
                     System {health.status}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-700">
                     {health.components.filter(c => c.status === 'healthy').length} of {health.components.length} components healthy
                     · Uptime {Math.floor(health.uptime_s / 60)}m {Math.floor(health.uptime_s % 60)}s
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-slate-500">Version</div>
-                <div className="font-mono text-sm text-purple-300">{health.version}</div>
+                <div className="text-xs text-slate-700">Version</div>
+                <div className="font-mono text-sm text-accent-500">{health.version}</div>
               </div>
             </div>
           </motion.div>
@@ -59,13 +59,13 @@ export default function MetricsPage() {
 
         {/* Component health cards */}
         <section>
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4">
             Infrastructure Components
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="glass-card p-5 space-y-3">
+                <div key={i} className="card p-5 space-y-3">
                   <div className="flex gap-3">
                     <div className="skeleton w-10 h-10 rounded-xl" />
                     <div className="space-y-1.5 flex-1">
@@ -85,10 +85,10 @@ export default function MetricsPage() {
 
         {/* Prometheus info */}
         <section>
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4">
             Metrics Endpoints
           </h2>
-          <div className="glass-card overflow-hidden">
+          <div className="card overflow-hidden">
             <table className="data-table">
               <thead>
                 <tr>
@@ -108,21 +108,21 @@ export default function MetricsPage() {
                   { name: 'retrievallab_agent_node_latency_ms', type: 'Histogram',labels: 'node_name',                 desc: 'Agent pipeline node latency' },
                 ].map(row => (
                   <tr key={row.name}>
-                    <td><code className="font-mono text-xs text-purple-300">{row.name}</code></td>
+                    <td><code className="font-mono text-xs text-accent-500">{row.name}</code></td>
                     <td><span className="badge-purple text-[10px]">{row.type}</span></td>
-                    <td className="text-xs font-mono text-slate-500">{row.labels}</td>
-                    <td className="text-xs text-slate-400">{row.desc}</td>
+                    <td className="text-xs font-mono text-slate-700">{row.labels}</td>
+                    <td className="text-xs text-slate-700">{row.desc}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-4 p-4 rounded-lg text-xs text-slate-400"
-            style={{ background: 'rgba(124,58,237,0.04)', border: '1px solid rgba(124,58,237,0.1)' }}>
-            <span className="text-purple-300 font-medium">Prometheus:</span> Scrape{' '}
+          <div className="mt-4 p-4 rounded-lg text-xs text-slate-700"
+            style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.1)' }}>
+            <span className="text-accent-500 font-medium">Prometheus:</span> Scrape{' '}
             <code className="font-mono text-slate-300 bg-white/5 px-1.5 py-0.5 rounded">http://localhost:9090/metrics</code>
-            {' '}· <span className="text-purple-300 font-medium">MLflow:</span>{' '}
+            {' '}· <span className="text-accent-500 font-medium">MLflow:</span>{' '}
             <code className="font-mono text-slate-300 bg-white/5 px-1.5 py-0.5 rounded">http://localhost:5000</code>
           </div>
         </section>
@@ -148,7 +148,7 @@ function ComponentCard({ component, index }: { component: any; index: number }) 
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="glass-card p-5"
+      className="card p-5"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -163,9 +163,9 @@ function ComponentCard({ component, index }: { component: any; index: number }) 
             } />
           </div>
           <div>
-            <div className="text-sm font-semibold text-white capitalize">{component.name}</div>
+            <div className="text-sm font-semibold text-text-primary capitalize">{component.name}</div>
             {component.detail && (
-              <div className="text-xs text-slate-500 mt-0.5">{component.detail}</div>
+              <div className="text-xs text-slate-700 mt-0.5">{component.detail}</div>
             )}
           </div>
         </div>
@@ -182,7 +182,7 @@ function ComponentCard({ component, index }: { component: any; index: number }) 
             </span>
           </div>
           {component.latency_ms && (
-            <div className="flex items-center gap-1 justify-end text-xs text-slate-600">
+            <div className="flex items-center gap-1 justify-end text-xs text-text-secondary">
               <Clock size={10} />
               {formatMs(component.latency_ms)}
             </div>

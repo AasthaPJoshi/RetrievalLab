@@ -11,7 +11,7 @@ const ATTACKS = [
   {
     name: 'Typo Noise',
     icon: Type,
-    color: 'text-purple-300',
+    color: 'text-accent-500',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
     description: 'Injects character-level typos (15% error rate). Tests robustness to OCR errors, fast typing, and mobile autocorrect failures.',
@@ -23,7 +23,7 @@ const ATTACKS = [
   {
     name: 'Synonym Substitution',
     icon: Repeat,
-    color: 'text-purple-400',
+    color: 'text-accent-500',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
     description: 'Replaces key content words with synonyms. Tests vocabulary mismatch handling and semantic coverage of dense retrieval.',
@@ -93,19 +93,19 @@ export default function AdversarialPage() {
       <main className="p-8 space-y-8 max-w-6xl mx-auto">
         {/* Hero explanation */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6">
+          className="card p-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <Shield size={22} className="text-red-400" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white mb-1">Why Adversarial Testing Matters</h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-3xl">
+              <h2 className="text-base font-semibold text-text-primary mb-1">Why Adversarial Testing Matters</h2>
+              <p className="text-sm text-slate-700 leading-relaxed max-w-3xl">
                 Standard benchmarks (BEIR, MIRACL) test clean, expert-crafted queries.
                 Real users send noisy, incomplete, off-topic queries — and your system needs to handle them gracefully.
                 A system scoring 0.85 NDCG@10 on BEIR may score 0.60 on real queries.
-                The adversarial harness quantifies this <span className="text-purple-300 font-medium">"production gap"</span> across 6 attack dimensions.
+                The adversarial harness quantifies this <span className="text-accent-500 font-medium">"production gap"</span> across 6 attack dimensions.
               </p>
             </div>
           </div>
@@ -121,28 +121,28 @@ export default function AdversarialPage() {
         {/* Robustness formula */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-6">
-          <h3 className="text-sm font-semibold text-white mb-4">Overall Robustness Score Formula</h3>
-          <div className="font-mono text-sm text-purple-300 p-4 rounded-lg mb-4"
-            style={{ background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.1)' }}>
+          className="card p-6">
+          <h3 className="text-sm font-semibold text-text-primary mb-4">Overall Robustness Score Formula</h3>
+          <div className="font-mono text-sm text-accent-500 p-4 rounded-lg mb-4"
+            style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.1)' }}>
             robustness = mean(attacked_NDCG) / baseline_NDCG × 100
           </div>
           <div className="grid grid-cols-3 gap-4 text-xs">
             {[
               { range: '≥ 90%', label: 'Excellent',  desc: 'Production-ready robustness', color: 'text-emerald-400' },
-              { range: '75-90%', label: 'Good',      desc: 'Minor hardening needed',       color: 'text-purple-300' },
+              { range: '75-90%', label: 'Good',      desc: 'Minor hardening needed',       color: 'text-accent-500' },
               { range: '< 75%', label: 'Fragile',    desc: 'Significant improvements required', color: 'text-red-400' },
             ].map(({ range, label, desc, color }) => (
-              <div key={label} className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div key={label} className="p-3 rounded-lg" style={{ background: 'rgba(15,23,42,0.035)' }}>
                 <div className={cn('text-lg font-bold font-mono', color)}>{range}</div>
-                <div className="text-white text-xs font-medium mt-0.5">{label}</div>
-                <div className="text-slate-500 mt-0.5">{desc}</div>
+                <div className="text-text-primary text-xs font-medium mt-0.5">{label}</div>
+                <div className="text-slate-700 mt-0.5">{desc}</div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-slate-500 mt-4">
+          <p className="text-xs text-slate-700 mt-4">
             Run the adversarial harness via CLI:{' '}
-            <code className="font-mono text-purple-300 bg-white/5 px-2 py-0.5 rounded">
+            <code className="font-mono text-accent-500 bg-white/5 px-2 py-0.5 rounded">
               python -m eval.adversarial.harness --corpus-id healthcare_v1 --mode hybrid
             </code>
           </p>
@@ -160,34 +160,34 @@ function AttackCard({ attack, index }: { attack: typeof ATTACKS[0]; index: numbe
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="glass-card p-5 group"
+      className="card p-5 group"
     >
       <div className="flex items-center gap-3 mb-3">
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', attack.bg, `border ${attack.border}`)}>
           <Icon size={16} className={attack.color} />
         </div>
         <div>
-          <div className="text-sm font-semibold text-white">{attack.name}</div>
+          <div className="text-sm font-semibold text-text-primary">{attack.name}</div>
           <div className={cn('text-[10px] font-medium', attack.color)}>{attack.typical}</div>
         </div>
       </div>
 
-      <p className="text-xs text-slate-400 leading-relaxed mb-4">{attack.description}</p>
+      <p className="text-xs text-slate-700 leading-relaxed mb-4">{attack.description}</p>
 
-      <div className="space-y-2 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="space-y-2 p-3 rounded-lg" style={{ background: 'rgba(15,23,42,0.035)', border: '1px solid rgba(15,23,42,0.035)' }}>
         <div>
-          <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-0.5">Original</div>
+          <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">Original</div>
           <div className="text-xs font-mono text-slate-300">{attack.example_in}</div>
         </div>
         <div className="h-px bg-white/5" />
         <div>
-          <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-0.5">Attacked</div>
+          <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">Attacked</div>
           <div className={cn('text-xs font-mono', attack.color)}>{attack.example_out}</div>
         </div>
       </div>
 
-      <div className="mt-3 text-[10px] text-slate-600">
-        Measures: <span className="text-slate-500">{attack.metric}</span>
+      <div className="mt-3 text-[10px] text-text-secondary">
+        Measures: <span className="text-slate-700">{attack.metric}</span>
       </div>
     </motion.div>
   );
