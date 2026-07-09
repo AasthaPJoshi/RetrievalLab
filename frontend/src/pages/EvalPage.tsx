@@ -142,7 +142,7 @@ export default function EvalPage() {
                     <div className="px-5 py-3 border-b" style={{ borderColor: 'rgba(124,58,237,0.08)' }}>
                       <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">All Metrics</h4>
                     </div>
-                    <div className="divide-y" style={{ '--tw-divide-opacity': '1' }}>
+                    <div className="divide-y" >
                       {Object.entries(result).map(([key, val]) => (
                         <div key={key} className="flex items-center justify-between px-5 py-2.5">
                           <span className="text-xs font-mono text-slate-700">{key}</span>
