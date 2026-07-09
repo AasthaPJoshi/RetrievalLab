@@ -235,6 +235,5 @@ fail_under     = 70              # fail CI if coverage drops below 70%
 "corpus/loaders/text_loader.py" = ["B904"]
 "eval/benchmarks/beir_runner.py" = ["B904"]
 "eval/adversarial/harness.py" = ["B904", "B905", "F841"]
-"eval/metrics/mlflow_tracker.py" = ["B904"]
 "corpus/chunkers/chunk_engine.py" = ["F841"]
 "eval/metrics/ragas_evaluator.py" = ["F401", "B904"]
