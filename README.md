@@ -1,6 +1,6 @@
 # RetrievalLab 🔬
 
-**Cross-industry retrieval research platform — benchmark, stress-test, and advance RAG systems**
+**Cross-industry retrieval research platform — benchmark, stress-test, and advance RAG systems.**
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)](https://fastapi.tiangolo.com)
