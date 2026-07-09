@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 import enum
+from enum import StrEnum
 import uuid
 from datetime import UTC, datetime
 
@@ -52,7 +53,7 @@ from backend.db.base import Base
 # ─── Enumerations ────────────────────────────────────────────────────────────
 
 
-class CorpusDomain(str, enum.Enum):
+class CorpusDomain(StrEnum):
     """Industry domain of the corpus. Drives domain-specific chunking defaults."""
 
     HEALTHCARE = "healthcare"
@@ -66,7 +67,7 @@ class CorpusDomain(str, enum.Enum):
     GENERAL = "general"
 
 
-class CorpusStatus(str, enum.Enum):
+class CorpusStatus(StrEnum):
     """Ingestion lifecycle state."""
 
     PENDING = "pending"  # queued for ingestion
@@ -78,7 +79,7 @@ class CorpusStatus(str, enum.Enum):
     DEPRECATED = "deprecated"  # superseded by a newer version
 
 
-class ChunkStrategy(str, enum.Enum):
+class ChunkStrategy(StrEnum):
     """The chunking algorithm used to produce this chunk."""
 
     FIXED = "fixed"

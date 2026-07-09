@@ -304,9 +304,9 @@ class TestTableAwareChunker:
         config = ChunkConfig(strategy="table_aware", chunk_size=512)
         chunks = self.chunker.chunk(document_with_tables, config)
         _table_chunks = [c for c in chunks if c.metadata.get("is_table")]
-        if table_chunks:
+        if _table_chunks:
             # Table chunk text should contain "Headers:" line
-            assert "Headers:" in table_chunks[0].text or "TABLE" in table_chunks[0].text
+            assert "Headers:" in _table_chunks[0].text or "TABLE" in _table_chunks[0].text
 
     def test_prose_and_tables_both_chunked(self, document_with_tables):
         config = ChunkConfig(strategy="table_aware", chunk_size=512)

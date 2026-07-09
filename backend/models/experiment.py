@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import enum
+from enum import StrEnum
 import uuid
 from datetime import UTC, datetime
 
@@ -42,7 +43,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.db.base import Base
 
 
-class RetrieverMode(str, enum.Enum):
+class RetrieverMode(StrEnum):
     """Retrieval mode used in the experiment."""
 
     SPARSE = "sparse"
