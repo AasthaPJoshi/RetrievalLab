@@ -30,7 +30,6 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # ─── Sub-models ──────────────────────────────────────────────────────────────
 
 class DatabaseSettings(BaseSettings):
@@ -243,7 +242,7 @@ class Settings(BaseSettings):
     mlflow:        MLflowSettings        = MLflowSettings()
 
     @model_validator(mode="after")
-    def warn_missing_api_keys(self) -> "Settings":
+    def warn_missing_api_keys(self) -> Settings:
         """Warn (not error) if no LLM API keys are configured."""
         if (
             self.llm.anthropic_api_key is None

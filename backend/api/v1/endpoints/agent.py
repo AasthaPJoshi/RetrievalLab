@@ -14,17 +14,15 @@
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.agents.retrieval_agent import AgentQuery, RetrievalAgent
 from backend.db.base import get_db
-from backend.agents.retrieval_agent import RetrievalAgent, AgentQuery
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()

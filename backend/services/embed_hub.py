@@ -44,15 +44,14 @@ import asyncio
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
 from config.settings import get_settings
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger   = structlog.get_logger(__name__)
 settings = get_settings()
@@ -264,8 +263,9 @@ class EmbedHub:
             stats = await hub.embed_corpus("finance_sec_v1", db=session)
             print(f"Embedded {stats['embedded']} / {stats['embedded'] + stats['skipped']}")
         """
-        from backend.models.corpus import Corpus, Chunk, CorpusStatus
         from datetime import UTC, datetime
+
+        from backend.models.corpus import Chunk, Corpus, CorpusStatus
 
         start = time.perf_counter()
 

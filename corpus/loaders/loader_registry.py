@@ -32,7 +32,7 @@ import structlog
 
 from corpus.loaders.base_loader import BaseLoader, LoaderResult, ParsedDocument
 from corpus.loaders.pdf_loader import PDFLoader
-from corpus.loaders.text_loader import TextLoader, MarkdownLoader, DocxLoader, HTMLLoader
+from corpus.loaders.text_loader import DocxLoader, HTMLLoader, MarkdownLoader, TextLoader
 
 logger = structlog.get_logger(__name__)
 

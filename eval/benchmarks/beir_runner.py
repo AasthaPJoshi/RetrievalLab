@@ -46,7 +46,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -388,7 +388,7 @@ class BEIRRunner:
 
         Reuses existing corpus if already ingested (idempotent).
         """
-        import tempfile, os, json
+        import json
 
         # Write corpus to temp dir
         tmp_dir = self.data_dir / "tmp" / corpus_id
@@ -401,8 +401,8 @@ class BEIRRunner:
                 f.write(json.dumps({"id": doc_id, "text": text.strip()}) + "\n")
 
         # Ingest using CorpusForge (reuses fingerprint check for idempotency)
-        from backend.services.corpus_forge import CorpusForge, IngestRequest
         from backend.db.base import AsyncSessionLocal
+        from backend.services.corpus_forge import CorpusForge, IngestRequest
 
         async with AsyncSessionLocal() as db:
             forge   = CorpusForge(db=db)

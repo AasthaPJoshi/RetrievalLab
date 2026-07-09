@@ -29,9 +29,8 @@ from pydantic import BaseModel, Field
 
 from eval.metrics.retrieval_metrics import (
     EvalScore,
-    AggregatedEvalScore,
-    evaluate_retrieval,
     aggregate_scores,
+    evaluate_retrieval,
 )
 
 logger = structlog.get_logger(__name__)

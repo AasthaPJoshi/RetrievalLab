@@ -30,7 +30,8 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import event, text
+from config.settings import get_settings
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
@@ -38,8 +39,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-
-from config.settings import get_settings
 
 settings = get_settings()
 

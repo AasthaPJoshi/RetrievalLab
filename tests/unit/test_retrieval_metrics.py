@@ -24,8 +24,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from eval.metrics.retrieval_metrics import (
     AggregatedEvalScore,
     EvalScore,
@@ -40,7 +38,6 @@ from eval.metrics.retrieval_metrics import (
     recall_at_k,
     reciprocal_rank,
 )
-
 
 # ─── DCG / IDCG ───────────────────────────────────────────────────────────────
 

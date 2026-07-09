@@ -28,8 +28,6 @@
 
 from __future__ import annotations
 
-import io
-import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -143,14 +141,19 @@ class ReportForge:
     ) -> Path:
         """Generate PDF using ReportLab."""
         from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
         from reportlab.lib.pagesizes import letter
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
         from reportlab.platypus import (
-            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-            HRFlowable, PageBreak,
+            HRFlowable,
+            PageBreak,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
         )
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
         doc    = SimpleDocTemplate(str(path), pagesize=letter, rightMargin=0.75*inch, leftMargin=0.75*inch)
         styles = getSampleStyleSheet()
@@ -310,7 +313,7 @@ class ReportForge:
     ) -> Path:
         """Fallback Markdown report when ReportLab is unavailable."""
         lines = [
-            f"# RetrievalLab Evaluation Report",
+            "# RetrievalLab Evaluation Report",
             f"**Experiment:** {config.experiment_name}",
             f"**Generated:** {time.strftime('%Y-%m-%d %H:%M UTC')}",
             "",
@@ -319,8 +322,8 @@ class ReportForge:
 
         if retrieval_scores:
             lines += [
-                f"| Metric | Score |",
-                f"|--------|-------|",
+                "| Metric | Score |",
+                "|--------|-------|",
                 f"| NDCG@10 | {retrieval_scores.ndcg_at_10:.4f} |",
                 f"| MRR | {retrieval_scores.mrr:.4f} |",
                 f"| MAP@10 | {retrieval_scores.map_at_10:.4f} |",

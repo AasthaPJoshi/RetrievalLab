@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import structlog
 
@@ -211,14 +210,14 @@ class RagasEvaluator:
         and parses scores into RagasResult.
         """
         try:
-            from datasets import Dataset as HFDataset
             import ragas
+            from datasets import Dataset as HFDataset
             from ragas import evaluate as ragas_evaluate
             from ragas.metrics import (
+                answer_relevance,
                 context_precision,
                 context_recall,
                 faithfulness,
-                answer_relevance,
             )
         except ImportError as e:
             raise ImportError(

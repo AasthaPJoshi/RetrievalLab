@@ -17,10 +17,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models so Alembic can detect schema changes
-from backend.db.base import Base
-from backend.models.corpus import Corpus, Chunk  # noqa: F401
-from backend.models.experiment import Experiment, QueryResult  # noqa: F401
 from config.settings import get_settings
+
+from backend.db.base import Base
+from backend.models.corpus import Chunk, Corpus  # noqa: F401
+from backend.models.experiment import Experiment, QueryResult  # noqa: F401
 
 target_metadata = Base.metadata
 

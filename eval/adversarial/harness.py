@@ -48,9 +48,8 @@ import structlog
 
 from eval.metrics.retrieval_metrics import (
     EvalScore,
-    AggregatedEvalScore,
-    evaluate_retrieval,
     aggregate_scores,
+    evaluate_retrieval,
 )
 
 logger = structlog.get_logger(__name__)
@@ -110,7 +109,7 @@ class AdversarialReport:
     def summary(self) -> str:
         """Human-readable summary for CLI and logs."""
         lines = [
-            f"\n=== Adversarial Evaluation Report ===",
+            "\n=== Adversarial Evaluation Report ===",
             f"Corpus:             {self.corpus_id}",
             f"Overall Robustness: {self.overall_robustness:.1f}%",
             f"Duration:           {self.duration_s:.1f}s",

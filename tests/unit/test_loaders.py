@@ -22,10 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from corpus.loaders.base_loader import ParsedDocument, LoaderResult
-from corpus.loaders.text_loader import TextLoader, MarkdownLoader, HTMLLoader
+from corpus.loaders.base_loader import ParsedDocument
 from corpus.loaders.loader_registry import LoaderRegistry
-
+from corpus.loaders.text_loader import HTMLLoader, MarkdownLoader, TextLoader
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 

@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.base import get_db
 from backend.services.embed_hub import EmbedHub
 from backend.services.index_registry import IndexRegistry
-from backend.services.retriever_core import RetrieverCore, RetrievalRequest
+from backend.services.retriever_core import RetrievalRequest, RetrieverCore
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()

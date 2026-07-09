@@ -33,9 +33,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Generator
+from typing import Any
 
 import structlog
 
@@ -50,7 +51,7 @@ class RetrievalSpan:
     start_time: float = 0.0
     latency_ms: float = 0.0
 
-    def __enter__(self) -> "RetrievalSpan":
+    def __enter__(self) -> RetrievalSpan:
         self.start_time = time.perf_counter()
         return self
 
@@ -104,8 +105,13 @@ class ObserveLab:
         """Set up Prometheus metrics."""
         try:
             from prometheus_client import (
-                Counter, Histogram, Gauge, start_http_server,
-                CollectorRegistry, CONTENT_TYPE_LATEST, generate_latest,
+                CONTENT_TYPE_LATEST,
+                CollectorRegistry,
+                Counter,
+                Gauge,
+                Histogram,
+                generate_latest,
+                start_http_server,
             )
 
             # Retrieval latency histogram (ms)
@@ -188,10 +194,10 @@ class ObserveLab:
     def _init_otel(self) -> None:
         """Set up OpenTelemetry tracer."""
         try:
+            from config.settings import get_settings
             from opentelemetry import trace
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from config.settings import get_settings
 
             s        = get_settings()
             provider = TracerProvider()

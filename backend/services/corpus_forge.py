@@ -34,19 +34,19 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.corpus import (
-    Corpus,
     Chunk,
+    ChunkStrategy,
+    Corpus,
     CorpusDomain,
     CorpusStatus,
-    ChunkStrategy,
 )
-from corpus.loaders.loader_registry import LoaderRegistry, default_registry
-from corpus.chunkers.chunk_engine import ChunkEngine, ChunkConfig, default_chunk_engine
+from corpus.chunkers.chunk_engine import ChunkConfig, ChunkEngine, default_chunk_engine
 from corpus.loaders.base_loader import ParsedDocument
+from corpus.loaders.loader_registry import LoaderRegistry, default_registry
 
 logger = structlog.get_logger(__name__)
 
@@ -378,7 +378,6 @@ class CorpusForge:
         Uses SQLAlchemy bulk_insert_mappings for performance on large corpora.
         Flushes every 1000 chunks to avoid holding a giant transaction open.
         """
-        from backend.models.corpus import ChunkStrategy as ChunkStrategyEnum
 
         BATCH_SIZE = 1000
         batch: list[dict] = []

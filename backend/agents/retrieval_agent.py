@@ -35,7 +35,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
 import structlog
 
@@ -240,6 +240,7 @@ class QueryAnalyzerNode:
         """Decompose complex query into atomic sub-queries."""
         try:
             import json
+
             from anthropic import Anthropic
             client = Anthropic()
             response = client.messages.create(
@@ -511,7 +512,7 @@ Based solely on the above context, provide a comprehensive answer to the query."
         except Exception:
             # Extractive fallback: return top 3 chunk snippets
             snippets = [f"• {r['text'][:200]}..." for r in results[:3]]
-            return f"Based on retrieved documents:\n\n" + "\n\n".join(snippets)
+            return "Based on retrieved documents:\n\n" + "\n\n".join(snippets)
 
 
 class OutputFormatterNode:
