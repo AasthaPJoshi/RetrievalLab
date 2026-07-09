@@ -231,8 +231,9 @@ class FaissIndex(VectorIndex):
         """Synchronous FAISS build (runs in thread pool)."""
         try:
             import faiss
-        except ImportError:
-            raise ImportError("faiss-cpu required: pip install faiss-cpu")
+        except ImportError as err:
+            raise ImportError("faiss-cpu required: pip install faiss-cpu") from err
+
 
         vecs = np.array(vectors, dtype=np.float32)
 
@@ -285,7 +286,7 @@ class FaissIndex(VectorIndex):
         scores, indices = self._index.search(q, k)
 
         results = []
-        for rank, (score, idx) in enumerate(zip(scores[0], indices[0]), start=1):
+        for rank, (score, idx) in enumerate(zip(scores[0], indices[0], strict=False), start=1):
             if idx == -1:
                 continue  # FAISS returns -1 for empty slots
             results.append(
@@ -440,7 +441,7 @@ class ChromaIndex(VectorIndex):
                     results["documents"][0],
                     results["metadatas"][0],
                     results["distances"][0],
-                ),
+                , strict=False),
                 start=1,
             ):
                 out.append(

@@ -189,7 +189,7 @@ class ReportForge:
             spaceBefore=20,
             spaceAfter=8,
         )
-        h2_style = ParagraphStyle(
+        _h2_style = ParagraphStyle(
             "H2",
             parent=styles["Heading2"],
             fontSize=13,
@@ -207,7 +207,7 @@ class ReportForge:
             spaceAfter=4,
             leading=15,
         )
-        metric_style = ParagraphStyle(
+        _metric_style = ParagraphStyle(
             "Metric",
             parent=styles["Normal"],
             fontSize=22,

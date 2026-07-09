@@ -365,7 +365,7 @@ class BEIRRunner:
         if not dataset_path.exists():
             logger.info("downloading_beir_dataset", dataset=dataset_name)
             url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset_name}.zip"
-            beir_util.download_and_unzip(url, str(self.data_dir))
+            beir_util.download_and_unzip(url, str(self.data_dir, strict=False))
 
         corpus, queries, qrels = GenericDataLoader(data_folder=str(dataset_path)).load(split="test")
 

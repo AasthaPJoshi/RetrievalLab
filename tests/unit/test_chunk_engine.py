@@ -297,13 +297,13 @@ class TestTableAwareChunker:
     def test_creates_table_chunks(self, document_with_tables):
         config = ChunkConfig(strategy="table_aware", chunk_size=512)
         chunks = self.chunker.chunk(document_with_tables, config)
-        table_chunks = [c for c in chunks if c.metadata.get("is_table")]
+        _table_chunks = [c for c in chunks if c.metadata.get("is_table")]
         assert len(table_chunks) >= 1
 
     def test_table_chunk_has_headers(self, document_with_tables):
         config = ChunkConfig(strategy="table_aware", chunk_size=512)
         chunks = self.chunker.chunk(document_with_tables, config)
-        table_chunks = [c for c in chunks if c.metadata.get("is_table")]
+        _table_chunks = [c for c in chunks if c.metadata.get("is_table")]
         if table_chunks:
             # Table chunk text should contain "Headers:" line
             assert "Headers:" in table_chunks[0].text or "TABLE" in table_chunks[0].text
@@ -311,8 +311,8 @@ class TestTableAwareChunker:
     def test_prose_and_tables_both_chunked(self, document_with_tables):
         config = ChunkConfig(strategy="table_aware", chunk_size=512)
         chunks = self.chunker.chunk(document_with_tables, config)
-        table_chunks = [c for c in chunks if c.metadata.get("is_table")]
-        prose_chunks = [c for c in chunks if not c.metadata.get("is_table")]
+        _table_chunks = [c for c in chunks if c.metadata.get("is_table")]
+        _prose_chunks = [c for c in chunks if not c.metadata.get("is_table")]
         # Should have both prose and table chunks
         assert len(chunks) >= 1  # at minimum tables + some prose
 

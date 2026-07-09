@@ -709,7 +709,7 @@ class TableAwareChunker(ChunkStrategy):
         # Remove [TABLE]...[/TABLE] markers (added by DocxLoader)
         import re
 
-        table_blocks = re.findall(r"\[TABLE\](.*?)\[/TABLE\]", text_without_tables, re.DOTALL)
+        _table_blocks = re.findall(r"\[TABLE\](.*?)\[/TABLE\]", text_without_tables, re.DOTALL)
         text_without_tables = re.sub(
             r"\[TABLE\].*?\[/TABLE\]", "", text_without_tables, flags=re.DOTALL
         )

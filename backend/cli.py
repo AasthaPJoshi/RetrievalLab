@@ -143,7 +143,7 @@ def ingest_corpus(
         raise typer.Exit(code=1)
 
 
-async def _run_ingest(request) -> IngestResult:
+async def _run_ingest(request):  # type: ignore[return]
     """Run ingestion in async context with DB session."""
     from backend.db.base import AsyncSessionLocal
     from backend.services.corpus_forge import CorpusForge

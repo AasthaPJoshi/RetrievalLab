@@ -214,7 +214,7 @@ class EmbedHub:
             new_vectors = await self._embed_batched(uncached_texts)
 
             # Store new vectors in cache and results
-            for list_idx, vec in zip(uncached_idx, new_vectors):
+            for list_idx, vec in zip(uncached_idx, new_vectors, strict=False):
                 cached_vecs[list_idx] = vec
                 await self._cache_set(cache_keys[list_idx], vec)
 
@@ -302,7 +302,7 @@ class EmbedHub:
             try:
                 vectors = await self.embed(texts)
 
-                for chunk, vector in zip(chunks, vectors):
+                for chunk, vector in zip(chunks, vectors, strict=False):
                     chunk.embedding = vector
                     chunk.embedding_model = self.model_config.name
                     chunk.embedding_created_at = datetime.now(UTC)
@@ -379,8 +379,8 @@ class EmbedHub:
         """Embed using OpenAI API (async via httpx)."""
         try:
             from openai import AsyncOpenAI
-        except ImportError:
-            raise ImportError("openai package required: pip install openai")
+        except ImportError as err:
+            raise ImportError("openai package required: pip install openai") from err
 
         api_key = settings.llm.openai_api_key
         if api_key is None:
@@ -399,8 +399,8 @@ class EmbedHub:
         """Embed using Cohere API."""
         try:
             import cohere
-        except ImportError:
-            raise ImportError("cohere package required: pip install cohere")
+        except ImportError as err:
+            raise ImportError("cohere package required: pip install cohere") from err
 
         api_key = settings.llm.cohere_api_key
         if api_key is None:

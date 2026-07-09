@@ -98,8 +98,9 @@ class MLflowTracker:
 
             exp_name = self.experiment_name or get_settings().mlflow.experiment_name
             mlflow.set_experiment(exp_name)
-        except ImportError:
-            raise ImportError("mlflow required: pip install mlflow")
+        except ImportError as err:
+            raise ImportError("mlflow required: pip install mlflow") from err
+
         except Exception as exc:
             logger.warning("mlflow_setup_failed", error=str(exc))
             raise

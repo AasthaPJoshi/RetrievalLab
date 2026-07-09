@@ -212,7 +212,7 @@ class RagasEvaluator:
         and parses scores into RagasResult.
         """
         try:
-            import ragas
+            import ragas  # noqa: F401
             from datasets import Dataset as HFDataset
             from ragas import evaluate as ragas_evaluate
             from ragas.metrics import (

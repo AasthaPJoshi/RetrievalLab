@@ -195,8 +195,8 @@ class DocxLoader(BaseLoader):
     def _parse(self, path: Path) -> ParsedDocument:
         try:
             from docx import Document as DocxDocument
-        except ImportError:
-            raise ImportError("python-docx required: pip install python-docx")
+        except ImportError as err:
+            raise ImportError("python-docx required: pip install python-docx") from err
 
         doc = DocxDocument(str(path))
 
@@ -292,8 +292,8 @@ class HTMLLoader(BaseLoader):
     def _parse(self, path: Path) -> ParsedDocument:
         try:
             from bs4 import BeautifulSoup
-        except ImportError:
-            raise ImportError("BeautifulSoup4 required: pip install beautifulsoup4 lxml")
+        except ImportError as err:
+            raise ImportError("BeautifulSoup4 required: pip install beautifulsoup4 lxml") from err
 
         try:
             raw_html = path.read_text(encoding="utf-8")

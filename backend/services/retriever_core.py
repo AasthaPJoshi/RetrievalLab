@@ -38,7 +38,6 @@
 # AFTER THIS FILE:
 #   Results go to → EvalEngine (Day 3) for NDCG@K / MRR / MAP computation
 # =============================================================================
-
 from __future__ import annotations
 
 import time
@@ -46,6 +45,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.services.embed_hub import EmbedHub
 from backend.services.index_registry import IndexRegistry

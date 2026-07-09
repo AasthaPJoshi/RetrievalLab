@@ -167,7 +167,7 @@ def attack_typo_noise(query: str, error_rate: float = 0.15, seed: int = 42) -> s
         attack_typo_noise("cardiac arrest symptoms")
         # → "cadriac arresst symptomss"
     """
-    rng = random.Random(seed)
+    _rng = random.Random(seed)
     chars = list(query)
     n_typo = max(1, int(len(chars) * error_rate))
 
@@ -277,7 +277,7 @@ def attack_synonym_substitution(query: str, rate: float = 0.3, seed: int = 42) -
         "decrease": "reduce",
     }
 
-    rng = random.Random(seed)
+    _rng = random.Random(seed)
     result = query
     for original, synonym in SYNONYMS.items():
         if original.lower() in result.lower() and rng.random() < rate:
@@ -299,7 +299,7 @@ def attack_irrelevant_injection(query: str, seed: int = 42) -> str:
     Returns:
         Query with injected irrelevant content.
     """
-    rng = random.Random(seed)
+    _rng = random.Random(seed)
     injections = [
         "By the way, my nephew's birthday is next week and we're having a party. ",
         "Also I was thinking about what to eat for lunch. Anyway, ",
@@ -355,7 +355,7 @@ def attack_semantic_trap(query: str, seed: int = 42) -> str:
     Returns:
         Modified query that shifts the topic while maintaining surface similarity.
     """
-    rng = random.Random(seed)
+    _rng = random.Random(seed)
 
     trap_transforms = [
         # Add negation
@@ -399,7 +399,7 @@ def attack_domain_shift(query: str, target_domain: str = "legal", seed: int = 42
     Returns:
         Query reformulated in target domain terminology.
     """
-    rng = random.Random(seed)
+    _rng = random.Random(seed)
 
     domain_prefixes = {
         "legal": "Per SEC regulation and case law precedent, in a court of law, ",
@@ -511,7 +511,7 @@ class AdversarialHarness:
                 baseline_ndcg=baseline_ndcg,
                 attacked_ndcg=attacked_ndcg,
                 query_count=len(queries),
-                examples=list(zip(queries[:3], attacked_queries[:3])),
+                examples=list(zip(queries[:3], attacked_queries[:3], strict=False)),
             )
             attack_results.append(attack_result)
 
@@ -555,7 +555,7 @@ class AdversarialHarness:
 
         scores: list[EvalScore] = []
 
-        for query, relevant in zip(queries, relevant_docs):
+        for query, relevant in zip(queries, relevant_docs, strict=False):
             try:
                 request = RetrievalRequest(
                     query=query,
