@@ -22,14 +22,16 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.base import get_db
-from backend.models.corpus import Chunk, Corpus, CorpusDomain, CorpusStatus
+from backend.models.corpus import Corpus, Chunk, CorpusDomain, CorpusStatus
 from backend.services.corpus_forge import CorpusForge, IngestRequest
 
 logger  = structlog.get_logger(__name__)

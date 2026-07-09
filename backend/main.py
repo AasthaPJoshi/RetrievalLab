@@ -31,19 +31,19 @@ import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from config.settings import get_settings
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.api.v1.endpoints import agent as agent_router
+from config.settings import get_settings
+from backend.db.base import check_db_connection
 
 # Import routers (created in their respective files)
 from backend.api.v1.endpoints import corpus as corpus_router
-from backend.api.v1.endpoints import eval as eval_router
 from backend.api.v1.endpoints import health as health_router
 from backend.api.v1.endpoints import retrieve as retrieve_router
-from backend.db.base import check_db_connection
+from backend.api.v1.endpoints import eval as eval_router
+from backend.api.v1.endpoints import agent as agent_router
 
 settings = get_settings()
 

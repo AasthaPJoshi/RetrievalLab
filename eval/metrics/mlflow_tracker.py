@@ -34,9 +34,9 @@ from __future__ import annotations
 
 import json
 import tempfile
-from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
+from pathlib import Path
+from typing import Any, Generator
 
 import structlog
 
@@ -171,7 +171,7 @@ class MLflowTracker:
         str_params = {str(k): str(v)[:500] for k, v in config.items()}
         mlflow.log_params(str_params)
 
-    def log_retrieval_scores(self, scores: AggregatedEvalScore) -> None:
+    def log_retrieval_scores(self, scores: "AggregatedEvalScore") -> None:
         """
         Log aggregated retrieval metrics as MLflow metrics.
 
@@ -196,7 +196,7 @@ class MLflowTracker:
         mlflow.log_metrics(metrics)
         logger.debug("mlflow_retrieval_scores_logged", ndcg=scores.ndcg_at_10)
 
-    def log_ragas_result(self, result: RagasResult) -> None:
+    def log_ragas_result(self, result: "RagasResult") -> None:
         """
         Log Ragas RAG-quality metrics as MLflow metrics.
 
@@ -217,7 +217,7 @@ class MLflowTracker:
             mlflow.log_metrics(metrics)
             logger.debug("mlflow_ragas_scores_logged", metrics=list(metrics.keys()))
 
-    def log_adversarial_report(self, report: AdversarialReport) -> None:
+    def log_adversarial_report(self, report: "AdversarialReport") -> None:
         """
         Log adversarial robustness metrics and save full report as artifact.
 
@@ -269,7 +269,7 @@ class MLflowTracker:
 
     def log_per_query_scores(
         self,
-        per_query_scores: list[EvalScore],
+        per_query_scores: "list[EvalScore]",
         filename: str = "per_query_scores.json",
     ) -> None:
         """

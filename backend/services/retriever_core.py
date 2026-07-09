@@ -48,7 +48,7 @@ from typing import Any, Literal
 import structlog
 
 from backend.services.embed_hub import EmbedHub
-from backend.services.index_registry import IndexRegistry
+from backend.services.index_registry import IndexRegistry, IndexSearchResult
 
 logger = structlog.get_logger(__name__)
 
@@ -254,9 +254,8 @@ class RetrieverCore:
 
     async def _bm25_retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """In-memory BM25 search using rank_bm25."""
-        import asyncio
-
         from rank_bm25 import BM25Okapi
+        import asyncio
 
         bm25_data = self.bm25_indexes[request.corpus_id]
         bm25: BM25Okapi    = bm25_data["bm25"]
@@ -289,8 +288,8 @@ class RetrieverCore:
     async def _elasticsearch_retrieve(self, request: RetrievalRequest) -> list[RetrievalResult]:
         """BM25 retrieval via Elasticsearch."""
         try:
-            from config.settings import get_settings
             from elasticsearch import AsyncElasticsearch
+            from config.settings import get_settings
             s = get_settings()
 
             es = AsyncElasticsearch(s.elasticsearch.url)
@@ -434,7 +433,7 @@ class RetrieverCore:
     async def build_bm25_index(
         self,
         corpus_id:  str,
-        db:         AsyncSession,
+        db:         "AsyncSession",
     ) -> None:
         """
         Build an in-memory BM25 index for a corpus from the database.
@@ -446,11 +445,9 @@ class RetrieverCore:
             corpus_id: Corpus to index.
             db:        Database session.
         """
-        import asyncio
-
         from rank_bm25 import BM25Okapi
-
-        from backend.models.corpus import Chunk, Corpus
+        from backend.models.corpus import Corpus, Chunk
+        import asyncio
 
         result = await db.execute(
             __import__("sqlalchemy", fromlist=["select"]).select(Corpus).where(

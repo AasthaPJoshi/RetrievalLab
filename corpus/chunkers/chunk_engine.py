@@ -391,7 +391,7 @@ class SemanticChunker(ChunkStrategy):
         embeddings = model.encode(sentences, batch_size=64, show_progress_bar=False)
 
         # Compute cosine similarities between adjacent sentences
-        def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
+        def cosine_sim(a: "np.ndarray", b: "np.ndarray") -> float:
             return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
 
         similarities = [

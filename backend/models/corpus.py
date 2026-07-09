@@ -49,6 +49,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base
 
+
 # ─── Enumerations ────────────────────────────────────────────────────────────
 
 class CorpusDomain(str, enum.Enum):
@@ -239,7 +240,7 @@ class Corpus(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    chunks: Mapped[list[Chunk]] = relationship(
+    chunks: Mapped[list["Chunk"]] = relationship(
         "Chunk",
         back_populates="corpus",
         cascade="all, delete-orphan",
@@ -362,7 +363,7 @@ class Chunk(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    corpus: Mapped[Corpus] = relationship("Corpus", back_populates="chunks")
+    corpus: Mapped["Corpus"] = relationship("Corpus", back_populates="chunks")
 
     # ── Indexes ──────────────────────────────────────────────────────────────
     __table_args__ = (

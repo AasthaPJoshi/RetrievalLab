@@ -1,12 +1,10 @@
 """MinIO/S3 storage utilities."""
 from __future__ import annotations
 
-
 async def ensure_bucket_exists() -> None:
     """Create the MinIO bucket if it doesn't exist."""
-    import asyncio
-
     from config.settings import get_settings
+    import asyncio
     settings = get_settings()
     try:
         from minio import Minio

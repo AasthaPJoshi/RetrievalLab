@@ -75,7 +75,7 @@ export default function Dashboard() {
       {/* ── What Makes This Different ───────────────────────────────── */}
       <DifferentiatorsSection />
 
-      <div className="relative z-10 p-8 space-y-8 max-w-container mx-auto">
+      <main className="relative z-10 p-8 space-y-8 max-w-container mx-auto">
         {/* ── Signature: adversarial robustness visualizer ───────────── */}
         <motion.section
           initial={{ opacity: 0, y: 12 }}
@@ -125,7 +125,7 @@ export default function Dashboard() {
             </table>
           )}
         </section>
-      </div>
+      </main>
     </div>
   );
 }

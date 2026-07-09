@@ -41,8 +41,8 @@ from typing import Any
 
 import numpy as np
 import structlog
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 logger = structlog.get_logger(__name__)
 
@@ -296,9 +296,7 @@ class FaissIndex(VectorIndex):
 
     async def save(self, path: str) -> None:
         """Save FAISS index + metadata to disk."""
-        import asyncio
-
-        import faiss
+        import asyncio, faiss
         p = Path(path)
         p.mkdir(parents=True, exist_ok=True)
         await asyncio.get_event_loop().run_in_executor(
@@ -522,7 +520,7 @@ class IndexRegistry:
         Raises:
             ValueError: If corpus not found or has no embeddings.
         """
-        from backend.models.corpus import Chunk, Corpus
+        from backend.models.corpus import Corpus, Chunk
         from backend.services.embed_hub import SUPPORTED_MODELS
 
         start = time.perf_counter()

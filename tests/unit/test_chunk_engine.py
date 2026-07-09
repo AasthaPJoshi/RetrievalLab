@@ -29,14 +29,15 @@ import pytest
 from corpus.chunkers.chunk_engine import (
     ChunkConfig,
     ChunkEngine,
-    DocumentStructureChunker,
     FixedSizeChunker,
     RecursiveChunker,
+    DocumentStructureChunker,
     TableAwareChunker,
     TextChunk,
     count_tokens,
 )
 from corpus.loaders.base_loader import ParsedDocument
+
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -356,6 +357,7 @@ class TestChunkEngine:
     def test_custom_strategy_registration(self, engine, medium_document):
         """A custom strategy registered at runtime should be usable."""
         from corpus.chunkers.chunk_engine import ChunkStrategy
+        from corpus.loaders.base_loader import ParsedDocument
 
         class TestStrategy(ChunkStrategy):
             @property

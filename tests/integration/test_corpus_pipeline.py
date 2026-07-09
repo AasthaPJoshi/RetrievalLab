@@ -26,6 +26,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import textwrap
 from pathlib import Path
@@ -106,8 +107,8 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
     Full pipeline: ingest → verify Corpus record exists in DB with correct fields.
     """
     from backend.db.base import AsyncSessionLocal
-    from backend.models.corpus import Corpus, CorpusStatus
     from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.models.corpus import Corpus, CorpusStatus
 
     corpus_id = "test_integration_001"
 
@@ -150,11 +151,10 @@ async def test_ingest_creates_corpus_record(temp_docs_dir):
 @pytest.mark.asyncio
 async def test_ingest_creates_chunk_records(single_doc_dir):
     """Verify chunk records are created in the DB after ingestion."""
-    from sqlalchemy import select
-
     from backend.db.base import AsyncSessionLocal
-    from backend.models.corpus import Chunk, Corpus
     from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.models.corpus import Corpus, Chunk
+    from sqlalchemy import select
 
     corpus_id = "test_integration_chunks_001"
 
@@ -195,11 +195,10 @@ async def test_ingest_creates_chunk_records(single_doc_dir):
 @pytest.mark.asyncio
 async def test_idempotent_reingest(single_doc_dir):
     """Re-ingesting the same corpus with same files should be a no-op."""
-    from sqlalchemy import select
-
     from backend.db.base import AsyncSessionLocal
-    from backend.models.corpus import Corpus
     from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.models.corpus import Corpus
+    from sqlalchemy import select
 
     corpus_id = "test_integration_idempotent_001"
 
@@ -238,10 +237,10 @@ async def test_idempotent_reingest(single_doc_dir):
 @pytest.mark.asyncio
 async def test_force_reingest(single_doc_dir):
     """Force re-ingest should re-run even with same fingerprint."""
-
     from backend.db.base import AsyncSessionLocal
-    from backend.models.corpus import Corpus
     from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.models.corpus import Corpus
+    from sqlalchemy import select
 
     corpus_id = "test_integration_force_001"
 
@@ -307,11 +306,10 @@ async def test_ingest_empty_directory_returns_failed(empty_dir):
 @pytest.mark.asyncio
 async def test_multiple_strategies_same_corpus(single_doc_dir):
     """Different chunking strategies on the same source produce different chunk counts."""
-    from sqlalchemy import delete
-
     from backend.db.base import AsyncSessionLocal
-    from backend.models.corpus import Corpus
     from backend.services.corpus_forge import CorpusForge, IngestRequest
+    from backend.models.corpus import Corpus
+    from sqlalchemy import select, delete
 
     async def _ingest_with_strategy(strategy: str, corpus_id: str) -> int:
         async with AsyncSessionLocal() as db:

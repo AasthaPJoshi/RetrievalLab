@@ -26,15 +26,15 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import (
-    Boolean,
     DateTime,
     Enum,
     Float,
     ForeignKey,
-    Index,
     Integer,
     String,
     Text,
+    Index,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -124,7 +124,7 @@ class Experiment(Base):
     )
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    query_results: Mapped[list[QueryResult]] = relationship(
+    query_results: Mapped[list["QueryResult"]] = relationship(
         "QueryResult", back_populates="experiment", cascade="all, delete-orphan"
     )
 
@@ -182,7 +182,7 @@ class QueryResult(Base):
     latency_ms:  Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # ── Relationship ─────────────────────────────────────────────────────────
-    experiment: Mapped[Experiment] = relationship("Experiment", back_populates="query_results")
+    experiment: Mapped["Experiment"] = relationship("Experiment", back_populates="query_results")
 
     __table_args__ = (
         Index("ix_qr_experiment_index", "experiment_id", "query_index"),
