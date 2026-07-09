@@ -236,8 +236,4 @@ fail_under     = 70              # fail CI if coverage drops below 70%
 "eval/benchmarks/beir_runner.py" = ["B904"]
 "eval/adversarial/harness.py" = ["B904", "B905", "F841"]
 "corpus/chunkers/chunk_engine.py" = ["F841"]
-<<<<<<< HEAD
 "eval/metrics/ragas_evaluator.py" = ["F401", "B904"]
-=======
-"eval/metrics/ragas_evaluator.py" = ["F401", "B904"]
->>>>>>> e6171af (fix: toml file)
