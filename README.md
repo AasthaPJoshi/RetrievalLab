@@ -2,7 +2,7 @@
 
 <br/>
 
-# ⚡ RetrievalLab
+# ⚡ RetrievalLab 
 
 ### Cross-Industry RAG Benchmarking & Retrieval Research Platform
 
